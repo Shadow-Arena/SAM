@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment / secrets
+.env
+
+# App outputs
+outputs/
+*.png
+!tests/**/*.png
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Model cache
+.cache/
