@@ -30,6 +30,32 @@ make run        # launch UI at http://0.0.0.0:7860
 > make run-mock
 > ```
 
+## Hugging Face login (required for gated private checkpoints)
+
+Some SAM3 checkpoints are gated — first authorize your account on
+[huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), then
+log in **once** with any of these options:
+
+```bash
+# 1) token in .env (recommended; auto-login on every app start)
+echo "SAM_HF_TOKEN=hf_xxx" >> .env      # .env is gitignored
+
+# 2) interactive login (saved in ~/.cache/huggingface/token)
+make login
+make login TOKEN=hf_xxx                 # non-interactive with a token
+
+# 3) exactly like your notebook snippet
+uv run python -c "from huggingface_hub import login; login('hf_xxx')"
+```
+
+If `SAM_HF_TOKEN` is set, the app calls `huggingface_hub.login(SAM_HF_TOKEN)` at
+startup automatically (configurable with `SAM_HF_LOGIN=true|false`). Check it with:
+
+```bash
+make login-status     # hf auth whoami
+make config           # shows whether a token is configured (masked)
+```
+
 ## Makefile targets
 
 ```bash
@@ -120,8 +146,9 @@ Copy `.env.example` → `.env` (`make env`) and override anything with the `SAM_
 | `SAM_HOST` / `SAM_PORT`     | `0.0.0.0` / `7860`| UI bind address                                |
 | `SAM_SHARE`                 | `false`           | public gradio share link                       |
 | `SAM_OUTPUT_DIR`            | `outputs`         | where results are saved                        |
-| `SAM_HF_ENDPOINT`           | —                 | HF mirror, e.g. `https://hf-mirror.com`        |
+| `SAM_HF_ENDPOINT`            | —                 | HF mirror, e.g. `https://hf-mirror.com`        |
 | `SAM_HF_TOKEN`              | —                 | token for gated/private checkpoints            |
+| `SAM_HF_LOGIN`               | `true`            | auto `huggingface_hub.login(SAM_HF_TOKEN)`     |
 | `SAM_MOCK`                  | `false`           | synthetic engine (dev/tests, no download)      |
 
 Verify with `make config`.
@@ -138,7 +165,7 @@ app/
   ui.py            # Gradio interface
   main.py          # UI entry point (python -m app.main)
   cli.py           # one-shot CLI (python -m app.cli)
-Makefile           # setup/run/test/lint/help (uses uv)
+Makefile           # setup/run/test/lint/help (uses uv; `make login` authenticates with HF)
 uv.lock            # reproducible dependency lockfile
 .env.example       # documented configuration template
 tests/             # pytest suite

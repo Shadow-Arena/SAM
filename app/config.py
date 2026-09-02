@@ -8,6 +8,7 @@ Run ``make config`` to print the effective configuration.
 
 from __future__ import annotations
 
+import logging
 import os
 from enum import Enum
 from pathlib import Path
@@ -15,6 +16,8 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class DeviceChoice(str, Enum):
@@ -122,6 +125,9 @@ class SamSettings(BaseSettings):
     # ------------------------------------------------------------- hf hub
     hf_endpoint: str | None = Field(default=None, description="HF endpoint override, e.g. https://hf-mirror.com.")
     hf_token: str | None = Field(default=None, description="HF token for gated/private checkpoints.")
+    hf_login: bool = Field(
+        default=True, description="Call huggingface_hub.login() with SAM_HF_TOKEN at startup."
+    )
 
     # ------------------------------------------------------------- misc
     mock: bool = Field(default=False, description="Use the mock engine (no model download). For UI/tests only.")
@@ -144,11 +150,32 @@ class SamSettings(BaseSettings):
         return self.tracker_model_id or self.model_id
 
     def apply_hf_environment(self) -> None:
-        """Export the configured HF endpoint/token so transformers picks them up."""
+        """Configure Hugging Face access from settings.
+
+        1. Exports ``HF_ENDPOINT`` / ``HF_TOKEN`` so transformers picks them up.
+        2. If ``SAM_HF_TOKEN`` is set and ``hf_login`` is enabled, authenticates
+           via :func:`huggingface_hub.login` (same as ``login(SAM_HF_TOKEN)``).
+
+        Failures never break startup: the token stays available through
+        ``HF_TOKEN``, and the reason is logged (HF is unreachable or the token
+        is rejected). Use ``make login`` for an interactive login.
+        """
         if self.hf_endpoint:
             os.environ.setdefault("HF_ENDPOINT", self.hf_endpoint)
-        if self.hf_token:
-            os.environ.setdefault("HF_TOKEN", self.hf_token)
+        if not self.hf_token:
+            return
+        os.environ.setdefault("HF_TOKEN", self.hf_token)
+        if not self.hf_login:
+            return
+        try:
+            from huggingface_hub import login
+
+            login(token=self.hf_token, add_to_git_credential=False)
+            logger.info("Hugging Face login: authenticated with SAM_HF_TOKEN.")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Hugging Face login failed (continuing with HF_TOKEN env var): %s", exc
+            )
 
     @property
     def auth_tuple(self) -> tuple[str, str] | None:

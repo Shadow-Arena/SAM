@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 from app.config import DeviceChoice, DTypeChoice, SamSettings, resolve_device, resolve_torch_dtype
 
 
@@ -47,6 +49,50 @@ def test_without_env_file():
     # Ensure .env from repo root is not accidentally loaded in unit tests.
     s = SamSettings(_env_file=None)
     assert s.host == "0.0.0.0"
+
+
+def test_apply_hf_environment_sets_env(monkeypatch):
+    monkeypatch.setenv("SAM_HF_TOKEN", "hf_test_token")
+    s = SamSettings(_env_file=None)
+    s.apply_hf_environment()
+    assert os.environ.get("HF_TOKEN") == "hf_test_token"
+
+
+def test_apply_hf_environment_logs_in(monkeypatch):
+    import huggingface_hub
+
+    calls = []
+    monkeypatch.setattr(huggingface_hub, "login", lambda token=None, **kw: calls.append((token, kw)))
+    monkeypatch.setenv("SAM_HF_TOKEN", "hf_test_token")
+    monkeypatch.setenv("SAM_HF_LOGIN", "true")
+    s = SamSettings(_env_file=None)
+    s.apply_hf_environment()
+    assert calls == [("hf_test_token", {"add_to_git_credential": False})]
+
+
+def test_apply_hf_environment_login_failure_does_not_raise(monkeypatch):
+    import huggingface_hub
+
+    def _offline_login(token=None, **kw):
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(huggingface_hub, "login", _offline_login)
+    monkeypatch.setenv("SAM_HF_TOKEN", "hf_test_token")
+    s = SamSettings(_env_file=None)
+    s.apply_hf_environment()  # must not raise
+    assert os.environ.get("HF_TOKEN") == "hf_test_token"
+
+
+def test_apply_hf_environment_login_disabled(monkeypatch):
+    import huggingface_hub
+
+    called = []
+    monkeypatch.setattr(huggingface_hub, "login", lambda token=None, **kw: called.append(token))
+    monkeypatch.setenv("SAM_HF_TOKEN", "hf_test_token")
+    s = SamSettings(hf_login=False, _env_file=None)
+    s.apply_hf_environment()
+    assert called == []
+    assert os.environ.get("HF_TOKEN") == "hf_test_token"
 
 
 def test_resolve_device_types():

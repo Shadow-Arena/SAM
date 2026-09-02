@@ -90,6 +90,20 @@ fmt: check-uv ## Auto-format with ruff
 .PHONY: check
 check: lint test ## Lint + tests
 
+# ------------------------------------------------------------- hf auth
+.PHONY: login
+login: check-uv ## Log in to Hugging Face: `make login` (interactive) or `make login TOKEN=hf_xxx`
+	@if [ -n "$(TOKEN)" ]; then \
+		$(PYTHON) -c "from huggingface_hub import login; login(token='$(TOKEN)', add_to_git_credential=False)"; \
+	else \
+		echo "Opening Hugging Face login (you can also run: make login TOKEN=hf_xxx)"; \
+		$(UV) run hf auth login; \
+	fi
+
+.PHONY: login-status
+login-status: check-uv ## Show the current Hugging Face login status
+	$(UV) run hf auth whoami
+
 # ------------------------------------------------------------------ misc
 .PHONY: preload
 preload: check-uv ## Download & cache the SAM3 model to ~/.cache/huggingface
