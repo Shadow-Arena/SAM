@@ -1,12 +1,12 @@
 # ============================================================================
 # SAM3 Segment Studio — interactive image segmentation (text / box / point / mixed)
+# Dependency management: uv  (https://docs.astral.sh/uv/)
 # Run `make help` to list all targets.
 # ============================================================================
 
 SHELL        := /bin/bash
-VENV         := .venv
-PYTHON       := $(VENV)/bin/python
-PIP          := $(VENV)/bin/pip
+UV           ?= uv
+PYTHON       := $(UV) run python
 HOST         ?= 0.0.0.0
 PORT         ?= 7860
 .DEFAULT_GOAL := help
@@ -14,27 +14,36 @@ PORT         ?= 7860
 # ---------------------------------------------------------------------- help
 .PHONY: help
 help: ## Show this help
-	@echo "SAM3 Segment Studio — available targets:"
+	@echo "SAM3 Segment Studio — available targets (uv):"
 	@grep -E '^[a-zA-Z_][a-zA-Z0-9_.-]*:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-# ---------------------------------------------------------------- setup
-.PHONY: venv
-venv: ## Create the virtualenv
-	python3 -m venv $(VENV)
+# ------------------------------------------------------------- prerequisites
+.PHONY: check-uv
+check-uv:
+	@command -v $(UV) >/dev/null 2>&1 || { \
+		echo "Error: 'uv' not found."; \
+		echo "Install it with:  curl -LsSf https://astral.sh/uv/install.sh | sh"; \
+		echo "or:               pip install uv"; \
+		exit 1; }
 
-.PHONY: install
-install: ## Install package + dependencies into .venv
-	$(PIP) install --upgrade pip
-	$(PIP) install -e ".[dev]"
-
+# ------------------------------------------------------------------ setup
 .PHONY: setup
-setup: venv install env ## Full setup (venv + deps + .env)
+setup: check-uv ## Create .venv and install all deps from uv.lock (incl. dev group)
+	$(UV) sync
 
 .PHONY: env
 env: ## Create .env from .env.example (does not overwrite)
 	@if [ -f .env ]; then echo ".env already exists, keeping it."; \
 	else cp .env.example .env && echo "Created .env from .env.example"; fi
+
+.PHONY: lock
+lock: check-uv ## (Re)generate uv.lock
+	$(UV) lock
+
+.PHONY: update
+update: check-uv ## Upgrade dependencies and refresh uv.lock
+	$(UV) sync --upgrade
 
 .PHONY: clean
 clean: ## Remove caches and build artifacts
@@ -44,54 +53,46 @@ clean: ## Remove caches and build artifacts
 
 .PHONY: purge
 purge: clean ## Clean + remove .venv and outputs
-	rm -rf $(VENV) outputs
-	@echo "Removed $(VENV) and outputs/."
+	rm -rf .venv outputs
+	@echo "Removed .venv/ and outputs/. Re-run 'make setup'."
 
 # ------------------------------------------------------------------ run
 .PHONY: run
-run: ## Launch the interactive Gradio app (make run PORT=7861)
-	@if [ ! -x "$(PYTHON)" ]; then echo "Run 'make setup' first."; exit 1; fi
+run: check-uv ## Launch the interactive Gradio app (make run PORT=7861)
 	$(PYTHON) -m app.main --host $(HOST) --port $(PORT)
 
 .PHONY: run-mock
-run-mock: ## Launch the app WITHOUT downloading the model (synthetic mock engine)
-	@if [ ! -x "$(PYTHON)" ]; then echo "Run 'make setup' first."; exit 1; fi
+run-mock: check-uv ## Launch the app WITHOUT downloading the model (synthetic mock engine)
 	SAM_MOCK=true $(PYTHON) -m app.main --host $(HOST) --port $(PORT)
 
 .PHONY: segment
-segment: ## One-shot CLI segmentation: make segment ARGS="--image a.jpg --text car"
-	@if [ ! -x "$(PYTHON)" ]; then echo "Run 'make setup' first."; exit 1; fi
+segment: check-uv ## One-shot CLI segmentation: make segment ARGS="--image a.jpg --text car"
 	$(PYTHON) -m app.cli $(ARGS)
 
 .PHONY: config
-config: ## Print the effective configuration (values from .env / env vars)
+config: check-uv ## Print the effective configuration (values from .env / env vars)
 	$(PYTHON) -m app.main --config
 
 # -------------------------------------------------------------- quality
 .PHONY: test
-test: ## Run the test suite
-	$(PYTHON) -m pytest
+test: check-uv ## Run the test suite
+	$(UV) run pytest
 
 .PHONY: lint
-lint: ## Run ruff checks
-	$(PYTHON) -m ruff check app tests
+lint: check-uv ## Run ruff checks
+	$(UV) run ruff check app tests
 
 .PHONY: fmt
-fmt: ## Auto-format with ruff
-	$(PYTHON) -m ruff check --fix app tests
-	$(PYTHON) -m ruff format app tests
+fmt: check-uv ## Auto-format with ruff
+	$(UV) run ruff check --fix app tests
+	$(UV) run ruff format app tests
 
 .PHONY: check
 check: lint test ## Lint + tests
 
-.PHONY: typecheck
-typecheck: ## Run pyright/mypy if installed (optional)
-	@$(PYTHON) -c "import mypy" 2>/dev/null && $(PYTHON) -m mypy app || \
-		echo "mypy not installed — run: pip install mypy"
-
 # ------------------------------------------------------------------ misc
 .PHONY: preload
-preload: ## Download & cache the SAM3 model to ~/.cache/huggingface
+preload: check-uv ## Download & cache the SAM3 model to ~/.cache/huggingface
 	$(PYTHON) -c "from transformers import Sam3Model, Sam3Processor; \
 		Sam3Model.from_pretrained('facebook/sam3'); \
 		Sam3Processor.from_pretrained('facebook/sam3'); \

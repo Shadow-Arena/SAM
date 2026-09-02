@@ -15,8 +15,12 @@ Segment images using **text**, **boxes**, **points**, or a **mixed combination**
 
 ## Quick start
 
+Requires **Python ≥ 3.10** and [uv](https://docs.astral.sh/uv/):
+
 ```bash
-make setup      # create .venv, install deps, copy .env.example -> .env
+curl -LsSf https://astral.sh/uv/install.sh | sh   # or: pip install uv
+
+make setup      # uv sync: creates .venv, installs deps from uv.lock
 make run        # launch UI at http://0.0.0.0:7860
 ```
 
@@ -30,17 +34,29 @@ make run        # launch UI at http://0.0.0.0:7860
 
 ```bash
 make help        # show all targets (default)
-make setup       # venv + install + .env
+make setup       # uv sync — .venv + deps from uv.lock (dev group included)
+make lock        # regenerate uv.lock
+make update      # upgrade dependencies and refresh uv.lock
+make env         # copy .env.example -> .env
 make run         # start the Gradio app        (PORT=7861 overrides)
 make run-mock    # start the app using the synthetic mock engine
 make segment     # one-shot CLI:  make segment ARGS="--image a.jpg --text car"
 make config      # print effective configuration
-make test        # pytest
-make lint        # ruff
-make fmt         # ruff auto-format
+make test        # uv run pytest
+make lint        # uv run ruff
+make fmt         # uv run ruff (fix + format)
 make check       # lint + tests
 make preload     # download & cache the model ahead of time
 make clean purge # cleanup
+```
+
+Everything runs through `uv` (`uv sync`, `uv run`, `uv lock`), and `uv.lock` is committed for
+reproducible installs. You can also invoke it directly:
+
+```bash
+uv run python -m app.main --port 7860
+uv run python -m app.cli --image photo.jpg --text car
+uv run pytest
 ```
 
 ## Usage
@@ -81,7 +97,7 @@ make segment ARGS="--image img.jpg --box 100,150,500,450"
 make segment ARGS="--image img.jpg --text handle --negative-box 40,183,318,204 --mode mixed"
 
 # raw python
-./.venv/bin/python -m app.cli --image img.jpg --text car --score-threshold 0.4
+uv run python -m app.cli --image img.jpg --text car --score-threshold 0.4
 ```
 
 ## Configuration (pydantic + `.env`)
@@ -122,7 +138,8 @@ app/
   ui.py            # Gradio interface
   main.py          # UI entry point (python -m app.main)
   cli.py           # one-shot CLI (python -m app.cli)
-Makefile           # setup/run/test/lint/help
+Makefile           # setup/run/test/lint/help (uses uv)
+uv.lock            # reproducible dependency lockfile
 .env.example       # documented configuration template
 tests/             # pytest suite
 ```
@@ -130,9 +147,9 @@ tests/             # pytest suite
 ## Development
 
 ```bash
-make setup
-make check
-make run-mock   # verify the UI without downloading weights
+make setup       # uv sync
+make check       # uv run ruff + uv run pytest
+make run-mock    # verify the UI without downloading weights
 ```
 
 ## Notes

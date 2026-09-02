@@ -21,16 +21,20 @@ dependencies = [
     "requests>=2.31",
 ]
 
-[project.optional-dependencies]
+[project.scripts]
+sam3-app = "app.main:main"
+sam3-segment = "app.cli:main"
+
+[dependency-groups]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
     "ruff>=0.6",
 ]
 
-[project.scripts]
-sam3-app = "app.main:main"
-sam3-segment = "app.cli:main"
+[tool.uv]
+package = true
+default-groups = ["dev"]
 
 [tool.setuptools.packages.find]
 include = ["app*"]
