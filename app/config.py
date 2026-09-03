@@ -108,7 +108,10 @@ class SamSettings(BaseSettings):
     use_safetensors: bool = True
     low_cpu_mem_usage: bool = True
     local_files_only: bool = Field(default=False, description="Do not contact the hub; load from local cache only.")
-    lazy_load: bool = Field(default=True, description="Load models on first request instead of app start.")
+    lazy_load: bool = Field(
+        default=False,
+        description="Load models at startup (once) instead of on the first request.",
+    )
 
     # ------------------------------------------------------------ thresholds
     score_threshold: float = Field(default=0.30, description="Clamped to [0, 1].")

@@ -53,10 +53,11 @@ but the page is blank / no segmentation appears, check these **in order**:
    echo "SAM_DEVICE=cuda" >> .env   # verify with: make config
    ```
 
-3. **Preload the model** so the first click is instant:
+3. **Model loads once at startup** (default): `make run` downloads/loads the
+   weights before the UI opens — expect a long first start, then instant clicks:
    ```bash
-   make preload     # download weights once
-   make run-preload # SAM_LAZY_LOAD=false
+   make run        # "Loading SAM3 model (once) at startup ..." -> "SAM3 ready on cpu."
+   make preload    # optional: download weights once, before launching
    ```
 
 4. **Check the status bar** in the UI — `✅ N object(s) segmented …` appears under
@@ -101,9 +102,9 @@ make setup       # uv sync — .venv + deps from uv.lock (dev group included)
 make lock        # regenerate uv.lock
 make update      # upgrade dependencies and refresh uv.lock
 make env         # copy .env.example -> .env
-make run         # start the Gradio app        (PORT=7861 overrides)
+make run         # start the app — model loads ONCE at startup   (PORT=7861 overrides)
 make run-share   # public gradio.live link — Colab/Kaggle/remote
-make run-preload # load the model at startup (no lazy load)
+make run-preload # same as make run (explicit preload at startup)
 make run-mock    # start the app using the synthetic mock engine
 make segment     # one-shot CLI:  make segment ARGS="--image a.jpg --text car"
 make config      # print effective configuration
@@ -176,7 +177,7 @@ Copy `.env.example` → `.env` (`make env`) and override anything with the `SAM_
 | `SAM_TRACKER_MODEL_ID`      | `facebook/sam3`   | tracker model (defaults to `model_id`)         |
 | `SAM_DEVICE`                | `auto`            | `auto/cpu/cuda/mps/xpu`                        |
 | `SAM_DTYPE`                 | `auto`            | `auto/float32/float16/bfloat16`                |
-| `SAM_LAZY_LOAD`             | `true`            | load model on first request                    |
+| `SAM_LAZY_LOAD`             | `false`           | `false` = load once at startup (default)       |
 | `SAM_LOCAL_FILES_ONLY`      | `false`           | never contact the hub                          |
 | `SAM_SCORE_THRESHOLD`       | `0.30`            | PCS score threshold                            |
 | `SAM_MASK_THRESHOLD`        | `0.50`            | mask binarization threshold                    |
@@ -222,6 +223,13 @@ make run-mock    # verify the UI without downloading weights
 
 - Both `Sam3Model` (text/boxes) and `Sam3TrackerModel` (points) are loaded from the
   same `facebook/sam3` checkpoint; tracker weights are fetched lazily on first point use.
-- CPU works but is slow — CUDA strongly recommended (`SAM_DEVICE=cuda`).
+- **CPU works fine for trying it out** — expect roughly 30–120 s per image on a
+  typical Colab CPU and ~6 GB RAM. Use a small image and one prompt for the first
+  try. For real work, use a GPU (`Runtime → Change runtime type → T4`, then
+  `echo "SAM_DEVICE=cuda" >> .env`).
+- Both models (PCS + tracker) load **once at startup** (`SAM_LAZY_LOAD=false` is
+  the default), so the first text/box and the first point request are both
+  instant. Set `SAM_LAZY_LOAD=true` (or `make run` + `--lazy`) if you want the
+  server to open instantly and load only on the first request.
 - If `huggingface.co` is unreachable, set `SAM_HF_ENDPOINT=https://hf-mirror.com`
   and/or preload with `make preload`.

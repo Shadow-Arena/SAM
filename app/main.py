@@ -25,7 +25,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--preload",
         dest="lazy_load",
         action="store_false",
-        help="Preload the model at startup (fall back to SAM_LAZY_LOAD).",
+        default=None,
+        help="Preload the model at startup (this is also the default).",
+    )
+    parser.add_argument(
+        "--lazy",
+        dest="lazy_load",
+        action="store_true",
+        default=None,
+        help="Skip startup load; load the model on the first request.",
     )
     parser.add_argument("--config", action="store_true", help="Print effective configuration and exit.")
     return parser.parse_args(argv)
@@ -61,6 +69,18 @@ def main(argv: list[str] | None = None) -> int:
     import gradio as gr
 
     demo = build_app(settings)
+    # Load the model ONCE, synchronously at startup, so the UI is ready before
+    # the first segmentation request (requested default behavior).
+    if not settings.mock and not settings.lazy_load:
+        from .segmentation import get_engine
+
+        print("Loading SAM3 model(s) once at startup ...")
+        engine = get_engine(settings)
+        engine.ensure_pcs(print)
+        print("SAM3 PCS ready.")
+        engine.ensure_tracker(print)
+        print(f"SAM3 tracker ready — models cached on {engine.device}.")
+
     demo.queue(default_concurrency_limit=settings.queue_concurrency)
     demo.launch(
         server_name=settings.host,

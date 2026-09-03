@@ -70,7 +70,7 @@ run-share: check-uv ## Launch the app with a public gradio.live link (Colab/Kagg
 	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --share
 
 .PHONY: run-preload
-run-preload: check-uv ## Launch the app and load the model immediately (no lazy load)
+run-preload: check-uv ## Load the model at startup (same as default `make run`; explicit)
 	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --preload
 
 .PHONY: segment
