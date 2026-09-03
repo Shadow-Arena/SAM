@@ -47,4 +47,77 @@ def negative_point_to_box(point: Point, image_size: tuple[int, int], relative: f
     return (x0, y0, x1, y1)
 
 
-__all__ = ["cluster_positive_points", "negative_point_to_box"]
+def _cluster_to_points(cluster: list[Point]) -> list[list[float]]:
+    """Normalize a cluster to ``[[x, y], ...]``.
+
+    ``cluster_positive_points`` returns ``[object][point]``, but tolerate the
+    flat ``[point]`` form as well so the tracker keeps working regardless of
+    which representation arrives (defensive; the processors reject a wrong
+    nesting depth with an opaque error otherwise).
+    """
+    if cluster and isinstance(cluster[0], (list, tuple)):
+        return [[float(p[0]), float(p[1])] for p in cluster]
+    return [[float(cluster[0]), float(cluster[1])]]
+
+
+def build_tracker_prompts(
+    points_positive: list[Point],
+    points_negative: list[Point],
+    cluster_distance_px: int,
+) -> tuple[list, list]:
+    """Build SAM3 tracker processor inputs.
+
+    Returns ``(input_points, input_labels)`` with the nesting the
+    ``Sam3TrackerProcessor`` requires (transformers 5.x):
+
+    * ``input_points`` = ``[image][object][point][x, y]``  (4 levels)
+    * ``input_labels`` = ``[image][object][label]``        (3 levels)
+
+    Negative points are attached to the nearest positive cluster.
+    """
+    clusters = cluster_positive_points(list(points_positive), cluster_distance_px)
+    objects: list[list[list[float]]] = [_cluster_to_points(c) for c in clusters]
+    if not objects:
+        return [], []
+    centres = [
+        (sum(p[0] for p in obj) / len(obj), sum(p[1] for p in obj) / len(obj)) for obj in objects
+    ]
+    labels: list[list[int]] = [[1] * len(obj) for obj in objects]
+    for neg in points_negative:
+        idx = min(
+            range(len(objects)),
+            key=lambda i: (neg[0] - centres[i][0]) ** 2 + (neg[1] - centres[i][1]) ** 2,
+        )
+        objects[idx].append([float(neg[0]), float(neg[1])])
+        labels[idx].append(0)
+    return [objects], [labels]
+
+
+def build_pcs_prompts(
+    boxes_positive: list[XYXY],
+    boxes_negative: list[XYXY],
+) -> tuple[list | None, list | None]:
+    """Build SAM3 PCS processor inputs.
+
+    Returns ``(input_boxes, input_boxes_labels)`` with the nesting the
+    ``Sam3Processor`` requires (transformers 5.x):
+
+    * ``input_boxes``       = ``[image][box][x1, y1, x2, y2]`` (3 levels)
+    * ``input_boxes_labels`` = ``[image][box]``                (2 levels)
+
+    Labels are ``1`` for positive boxes and ``0`` for negative boxes.
+    Returns ``(None, None)`` when there are no boxes.
+    """
+    boxes = [[float(v) for v in b] for b in list(boxes_positive) + list(boxes_negative)]
+    if not boxes:
+        return None, None
+    labels = [1] * len(boxes_positive) + [0] * len(boxes_negative)
+    return [boxes], [labels]
+
+
+__all__ = [
+    "build_pcs_prompts",
+    "build_tracker_prompts",
+    "cluster_positive_points",
+    "negative_point_to_box",
+]

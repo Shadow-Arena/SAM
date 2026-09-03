@@ -23,7 +23,7 @@ from PIL import Image
 
 from ..config import ModeChoice, SamSettings, resolve_device, resolve_torch_dtype
 from ..domain import MaskInstance, PromptSet, SegmentationResult
-from ..prompts import cluster_positive_points, negative_point_to_box
+from ..prompts import build_pcs_prompts, build_tracker_prompts, negative_point_to_box
 from .common import ProgressCallback, merge_instances, report, validate_prompt
 from .errors import SegmentationError
 
@@ -118,12 +118,11 @@ class SegmentationEngine:
         model, processor = self.ensure_pcs(progress)
         if not prompt.has_text and not prompt.has_boxes:
             raise SegmentationError("Text or a box prompt is required for SAM3 PCS.")
-        boxes: list[list[float]] | None = [list(b) for b in prompt.boxes_positive + prompt.boxes_negative] or None
-        labels = [1] * len(prompt.boxes_positive) + [0] * len(prompt.boxes_negative) or None
+        boxes, labels = build_pcs_prompts(prompt.boxes_positive, prompt.boxes_negative)
         concept = "text" if prompt.has_text else "visual"
         report(
             progress,
-            f"Running SAM3 PCS ({concept} prompt, {len(boxes) if boxes else 0} box(es)) ...",
+            f"Running SAM3 PCS ({concept} prompt, {len(boxes[0]) if boxes else 0} box(es)) ...",
         )
         inputs = processor(
             images=image,
@@ -194,28 +193,15 @@ class SegmentationEngine:
         if not prompt.points_positive:
             raise SegmentationError("At least one positive point is required for the SAM3 tracker.")
         model, processor = self.ensure_tracker(progress)
-        clusters = cluster_positive_points(prompt.points_positive, self.settings.cluster_distance_px)
-        centres = [
-            (
-                sum(p[0] for p in cluster) / len(cluster),
-                sum(p[1] for p in cluster) / len(cluster),
-            )
-            for cluster in clusters
-        ]
-        points_by_obj = [list(c) for c in clusters]
-        labels_by_obj = [[1] * len(c) for c in clusters]
-        for neg in prompt.points_negative:
-            idx = min(
-                range(len(clusters)),
-                key=lambda i: (neg[0] - centres[i][0]) ** 2 + (neg[1] - centres[i][1]) ** 2,
-            )
-            points_by_obj[idx].append(neg)
-            labels_by_obj[idx].append(0)
-        input_points = [[[p for p in pts] for pts in points_by_obj]]
-        input_labels = [[list(lbl) for lbl in labels_by_obj]]
+        input_points, input_labels = build_tracker_prompts(
+            prompt.points_positive,
+            prompt.points_negative,
+            self.settings.cluster_distance_px,
+        )
         report(
             progress,
-            f"Running SAM3 tracker for {len(clusters)} object(s) (points: {sum(len(p) for p in points_by_obj)}) ...",
+            f"Running SAM3 tracker for {len(input_points[0])} object(s) "
+            f"(points: {sum(len(p) for p in input_points[0])}) ...",
         )
         inputs = processor(
             images=image,
