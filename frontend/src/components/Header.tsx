@@ -1,6 +1,8 @@
 import { ExternalLink, Gauge, Loader2, Shapes } from "lucide-react";
 import type { Health } from "../types";
 
+const UI_VERSION = "UI v0.3 · React";
+
 interface Props {
   health: Health | null;
   offline: boolean;
@@ -45,6 +47,7 @@ export default function Header({ health, offline }: Props) {
         </div>
       </div>
       <div className="header-spacer" />
+      <span className="ui-version" title="Frontend build">{UI_VERSION}</span>
       <HealthBadge health={health} offline={offline} />
       <a className="btn btn-ghost btn-sm" href="/docs" target="_blank" rel="noopener noreferrer">
         API docs <ExternalLink size={13} />
