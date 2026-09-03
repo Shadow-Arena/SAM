@@ -130,13 +130,19 @@ def make_load_handler(settings: SamSettings, engine_factory: Callable | None = N
     engine = engine_factory(settings) if engine_factory else get_engine(settings)
 
     def on_load() -> str:
+        hint = ""
+        if not settings.mock and getattr(engine, "device", "cpu") == "cpu" and not settings.lazy_load:
+            hint = " ⚠️ Running on **CPU** — segmentation is slow; enable a GPU for faster results."
         if settings.mock:
             return "🧪 Mock engine active (`SAM_MOCK=true`) — results are synthetic."
         if settings.lazy_load:
-            return "⚙️ Model loads on first segmentation request. Set `SAM_LAZY_LOAD=false` to preload."
+            return (
+                "⚙️ Model loads on the first segmentation request — this can take a minute "
+                "(set `SAM_LAZY_LOAD=false` to preload)." + hint
+            )
         try:
             engine.ensure_pcs(print)
-            return f"✅ Model ready on {engine.device}."
+            return f"✅ Model ready on {engine.device}." + hint
         except Exception as exc:  # noqa: BLE001
             return f"❌ Model load failed: {exc}"
 
@@ -146,8 +152,19 @@ def make_load_handler(settings: SamSettings, engine_factory: Callable | None = N
 def build_app(settings: SamSettings | None = None, engine_factory: Callable | None = None) -> gr.Blocks:
     """Create the Gradio application."""
     settings = settings or SamSettings()
+    engine = engine_factory(settings) if engine_factory else get_engine(settings)
     segment_click = make_segment_handler(settings, engine_factory)
     on_load = make_load_handler(settings, engine_factory)
+
+    # Warm up in the background so the first segmentation click does not pay
+    # the full model download/load latency (a common cause of proxy timeouts).
+    if not settings.mock and settings.lazy_load:
+        threading.Thread(
+            target=engine.ensure_pcs,
+            args=(lambda msg: logger.info("warmup: %s", msg),),
+            name="sam3-warmup",
+            daemon=True,
+        ).start()
 
     def clear_outputs():
         return None, None, [], [], []

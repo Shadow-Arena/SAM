@@ -55,6 +55,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.config:
         for key, value in sorted(settings.model_dump_safe().items()):
             print(f"{key:32s} = {value}")
+        print(f"{'hf_auth':32s} = {settings.describe_hf_auth()}")
         return 0
 
     import gradio as gr

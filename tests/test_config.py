@@ -56,6 +56,63 @@ def test_apply_hf_environment_sets_env(monkeypatch):
     s = SamSettings(_env_file=None)
     s.apply_hf_environment()
     assert os.environ.get("HF_TOKEN") == "hf_test_token"
+    assert os.environ.get("HUGGINGFACEHUB_API_TOKEN") == "hf_test_token"
+
+
+def test_hf_token_read_from_plain_hf_token_env(monkeypatch):
+    monkeypatch.setenv("HF_TOKEN", "hf_plain_token")
+    s = SamSettings(_env_file=None)
+    assert s.hf_token == "hf_plain_token"
+
+
+def test_hf_token_read_from_env_file(monkeypatch, tmp_path):
+    monkeypatch.delenv("HF_TOKEN", raising=False)
+    monkeypatch.delenv("HUGGINGFACEHUB_API_TOKEN", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("HF_TOKEN=hf_file_token\nHF_ENDPOINT=https://hf-mirror.com\n", encoding="utf-8")
+    s = SamSettings(_env_file=str(env_file))
+    assert s.hf_token == "hf_file_token"
+    assert s.hf_endpoint == "https://hf-mirror.com"
+
+
+def test_env_file_token_overrides_hf_token_env(monkeypatch, tmp_path):
+    """Token defined in .env must win over the ambient HF_TOKEN env var."""
+    monkeypatch.setenv("HF_TOKEN", "hf_ambient")
+    env_file = tmp_path / ".env"
+    env_file.write_text("SAM_HF_TOKEN=hf_from_dotenv\n", encoding="utf-8")
+    s = SamSettings(_env_file=str(env_file))
+    assert s.effective_hf_token() == "hf_from_dotenv"
+    s.apply_hf_environment()
+    assert os.environ["HF_TOKEN"] == "hf_from_dotenv"
+
+
+def test_plain_hf_token_in_env_file_wins_over_ambient_env(monkeypatch, tmp_path):
+    monkeypatch.setenv("HF_TOKEN", "hf_ambient")
+    env_file = tmp_path / ".env"
+    env_file.write_text("HF_TOKEN=hf_from_dotenv\n", encoding="utf-8")
+    s = SamSettings(_env_file=str(env_file))
+    assert s.effective_hf_token() == "hf_from_dotenv"
+
+
+def test_parse_dotenv(tmp_path):
+    from app.config import parse_dotenv
+
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "# comment\n"
+        "SAM_HF_TOKEN=hf_abc\n"
+        "export HF_ENDPOINT=https://hf-mirror.com\n"
+        'SAM_PORT="8000"\n'
+        "EMPTY=\n"
+        "NO_EQUALS_LINE\n",
+        encoding="utf-8",
+    )
+    parsed = parse_dotenv(env_file)
+    assert parsed["SAM_HF_TOKEN"] == "hf_abc"
+    assert parsed["HF_ENDPOINT"] == "https://hf-mirror.com"
+    assert parsed["SAM_PORT"] == "8000"
+    assert parsed["EMPTY"] == ""
+    assert "NO_EQUALS_LINE" not in parsed
 
 
 def test_apply_hf_environment_logs_in(monkeypatch):

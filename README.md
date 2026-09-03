@@ -30,6 +30,41 @@ make run        # launch UI at http://0.0.0.0:7860
 > make run-mock
 > ```
 
+## 🛠️ Troubleshooting: no output in the browser
+
+If the server starts (logs show `* Running on local URL: http://0.0.0.0:7860`)
+but the page is blank / no segmentation appears, check these **in order**:
+
+1. **Colab / Kaggle / remote VM** — `http://localhost:7860` points to *your* machine, not the notebook. Use:
+   ```bash
+   make run-share        # public https link like https://xxx.gradio.live — works anywhere
+   ```
+   or, inside the notebook:
+   ```python
+   from google.colab import output
+   output.serve_kernel_port_as_window(7860)
+   ```
+
+2. **Enabled GPU?** Without one, SAM3 runs on CPU and a single request can take
+   **minutes** — the notebook proxy may time out (and the log shows
+   `WARNING: Invalid HTTP request received.`). In Colab choose
+   `Runtime → Change runtime type → T4 GPU`, then:
+   ```bash
+   echo "SAM_DEVICE=cuda" >> .env   # verify with: make config
+   ```
+
+3. **Preload the model** so the first click is instant:
+   ```bash
+   make preload     # download weights once
+   make run-preload # SAM_LAZY_LOAD=false
+   ```
+
+4. **Check the status bar** in the UI — `✅ N object(s) segmented …` appears under
+   the Run button after each request, with the exact error if anything failed.
+
+5. `WARNING: Invalid HTTP request received.` alone is usually just a proxy
+   health-check hitting the HTTP port — ignore it if the app otherwise works.
+
 ## Hugging Face login (required for gated private checkpoints)
 
 Some SAM3 checkpoints are gated — first authorize your account on
@@ -48,12 +83,14 @@ make login TOKEN=hf_xxx                 # non-interactive with a token
 uv run python -c "from huggingface_hub import login; login('hf_xxx')"
 ```
 
-If `SAM_HF_TOKEN` is set, the app calls `huggingface_hub.login(SAM_HF_TOKEN)` at
-startup automatically (configurable with `SAM_HF_LOGIN=true|false`). Check it with:
+The token is read **from `.env`** (either `SAM_HF_TOKEN` or plain `HF_TOKEN`),
+exported as `HF_TOKEN` / `HUGGINGFACEHUB_API_TOKEN` (overriding any ambient
+shell/notebook value), and the app calls `huggingface_hub.login(token)` at
+startup automatically (configurable with `SAM_HF_LOGIN=true|false`):
 
 ```bash
 make login-status     # hf auth whoami
-make config           # shows whether a token is configured (masked)
+make config           # shows token status: hf_auth = configured from .env (***xxxx)
 ```
 
 ## Makefile targets
@@ -65,6 +102,8 @@ make lock        # regenerate uv.lock
 make update      # upgrade dependencies and refresh uv.lock
 make env         # copy .env.example -> .env
 make run         # start the Gradio app        (PORT=7861 overrides)
+make run-share   # public gradio.live link — Colab/Kaggle/remote
+make run-preload # load the model at startup (no lazy load)
 make run-mock    # start the app using the synthetic mock engine
 make segment     # one-shot CLI:  make segment ARGS="--image a.jpg --text car"
 make config      # print effective configuration

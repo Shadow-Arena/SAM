@@ -65,6 +65,14 @@ run: check-uv ## Launch the interactive Gradio app (make run PORT=7861)
 run-mock: check-uv ## Launch the app WITHOUT downloading the model (synthetic mock engine)
 	SAM_MOCK=true $(PYTHON) -m app.main --host $(HOST) --port $(PORT)
 
+.PHONY: run-share
+run-share: check-uv ## Launch the app with a public gradio.live link (Colab/Kaggle/remote)
+	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --share
+
+.PHONY: run-preload
+run-preload: check-uv ## Launch the app and load the model immediately (no lazy load)
+	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --preload
+
 .PHONY: segment
 segment: check-uv ## One-shot CLI segmentation: make segment ARGS="--image a.jpg --text car"
 	$(PYTHON) -m app.cli $(ARGS)
