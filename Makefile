@@ -57,8 +57,12 @@ purge: clean ## Clean + remove .venv and outputs
 	@echo "Removed .venv/ and outputs/. Re-run 'make setup'."
 
 .PHONY: run
-run: setup ## Launch the interactive Gradio app (make run PORT=7861) [auto-installs deps]
+run: setup ## Launch the FastAPI server (make run PORT=7861) [auto-installs deps]
 	$(PYTHON) -m app.main --host $(HOST) --port $(PORT)
+
+.PHONY: run-dev
+run-dev: setup ## Launch FastAPI with uvicorn auto-reload (development)
+	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --reload
 
 .PHONY: run-mock
 run-mock: setup ## Launch the app WITHOUT downloading the model (synthetic mock engine)
@@ -113,6 +117,6 @@ preload: check-uv ## Download & cache the SAM3 model to ~/.cache/huggingface
 
 	@echo ""
 	@echo "Next steps:"
-	@echo "  make run          # interactive UI on http://localhost:$(PORT)"
+	@echo "  make run          # FastAPI app on http://localhost:$(PORT)"
 	@echo "  make segment ARGS=\"--image photo.jpg --text car\""
 	@echo "  make test / lint # quality checks"

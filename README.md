@@ -1,15 +1,14 @@
 # SAM3 Segment Studio
 
 Interactive **image segmentation** app powered by Meta's **SAM3** (Segment Anything Model 3) through 🤗 Transformers.
-Segment images using **text**, **boxes**, **points**, or a **mixed combination** — just draw on the image and click *Run*.
+Segment images using **text**, **boxes**, **points**, or a **mixed combination** — draw on the image in the browser and hit *Run*.
 
+- **FastAPI** backend (`app/api.py`) with a single-file HTML/JS frontend.
 - **Text** — `"yellow school bus"`, `"ear"`, `"person"` → all matching instances (SAM3 Promptable Concept Segmentation).
 - **Box** — one or more positive/negative boxes.
 - **Point** — positive/negative clicks (SAM3 Tracker / Promptable Visual Segmentation).
 - **Mixed** — text + boxes + points together; results merged and deduplicated.
-- Pydantic config (`.env`), `Makefile` with `help`, Gradio UI, plus a CLI for batch/scripted use.
-
-![architecture](https://img.shields.io/badge/model-facebook%2Fsam3-blue)
+- Pydantic config (`.env`), `Makefile` with `help`, plus a CLI for batch/scripted use.
 
 ---
 
@@ -20,112 +19,61 @@ Requires **Python ≥ 3.10** and [uv](https://docs.astral.sh/uv/):
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh   # or: pip install uv
 
-make run        # ONE command: installs deps (uv sync), loads SAM3 once, opens the UI
+make run        # ONE command: installs deps (uv sync), loads SAM3 once, starts the server
 ```
 
 `make run` auto-runs `uv sync` first (incremental, so repeated runs are fast), then
 loads the model **once** and starts the app at http://0.0.0.0:7860.
+Open that URL in your browser; interactive API docs live at `/docs`.
 
-> The first segmentation downloads `facebook/sam3` (~several GB). For a UI smoke test **without** the model:
+> The first start downloads `facebook/sam3` (~several GB). For a UI smoke test **without** the model:
 >
 > ```bash
 > make run-mock
 > ```
 
-## 🛠️ Troubleshooting: no output in the browser
+## 🖥️ Web UI
 
-If the server starts (logs show `* Running on local URL: http://0.0.0.0:7860`)
-but the page is blank / no segmentation appears, check these **in order**:
-
-1. **Open the right URL** — use `http://localhost:7860` on the same machine
-   (or the machine's IP/domain if the server runs elsewhere). The port can be
-   changed with `make run PORT=7861`.
-
-2. **Enabled GPU?** Without one, SAM3 runs on CPU and a single request can take
-   **minutes**. Use a small image and a single prompt for the first try, or
-   enable a GPU and set `SAM_DEVICE=cuda` in `.env` (verify with `make config`).
-
-3. **Model loads once at startup** (default): `make run` downloads/loads the
-   weights before the UI opens — expect a long first start, then instant clicks:
-   ```bash
-   make run        # "Loading SAM3 model(s) once at startup ..." -> "SAM3 ready on cpu."
-   make preload    # optional: download weights once, before launching
-   ```
-
-4. **Check the status bar** in the UI — `✅ N object(s) segmented …` appears under
-   the Run button after each request, with the exact error if anything failed.
-
-5. `WARNING: Invalid HTTP request received.` alone is usually just a proxy
-   health-check hitting the HTTP port — ignore it if the app otherwise works.
-
-## Hugging Face login (required for gated private checkpoints)
-
-Some SAM3 checkpoints are gated — first authorize your account on
-[huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), then
-log in with **one single variable**:
-
-```bash
-echo "SAM_HF_TOKEN=hf_xxx" >> .env      # .env is gitignored
-```
-
-That's the only login variable. If it's set, the app automatically exports it as
-`HF_TOKEN` and calls `huggingface_hub.login(token)` at startup — same as your
-`login(SAM_HF_TOKEN)` snippet — and downloads directly from `huggingface.co`
-(no mirror).
-
-```bash
-make login-status     # hf auth whoami
-make config           # shows token status: hf_auth = configured (***xxxx)
-```
-
-## Makefile targets
-
-```bash
-make help        # show all targets (default)
-make run         # install deps + load SAM3 once + start the UI  (PORT=7861 overrides)
-make setup       # uv sync — .venv + deps from uv.lock (also auto-run by make run)
-make env         # copy .env.example -> .env
-make segment     # one-shot CLI:  make segment ARGS="--image a.jpg --text car"
-make config      # print effective configuration
-make login       # log in to Hugging Face (make login TOKEN=hf_xxx)
-make login-status# check the Hugging Face login
-make test        # uv run pytest
-make lint        # uv run ruff
-make fmt         # uv run ruff (fix + format)
-make check       # lint + tests
-make preload     # download & cache the model ahead of time
-make lock        # regenerate uv.lock
-make update      # upgrade dependencies and refresh uv.lock
-make run-mock    # start the app using the synthetic mock engine
-make clean purge # cleanup
-```
-
-Everything runs through `uv` (`uv sync`, `uv run`, `uv lock`), and `uv.lock` is committed for
-reproducible installs. `make run` is the only command you need for the UI.
-
-## Usage
-
-### Interactive UI
-
-1. Upload/paste an image into the editor.
-2. Draw strokes with the brush:
-   - 🟢 green = **positive** prompt (seed/exclude-from candidate)
-   - 🔴 red = **negative** prompt (exclude)
-   - small strokes → **points**; large strokes / rectangles → **boxes**
+1. Upload/drop an image.
+2. Draw on the canvas:
+   - 🟢 **Point +** — click for a **positive** point; **Shift+click** = negative point.
+   - 🟢/🔴 **Box + / Box −** — drag a rectangle (positive / negative box).
+   - **Clear prompts** empties everything; double-click a point to start over.
 3. (optional) type a **text prompt**.
-4. pick **Auto / Text / Box / Point / Mixed** and press **Run segmentation**.
+4. Pick **Auto / Text / Box / Point / Mixed** and press **Run segmentation**.
 
-Outputs: overlay composite, per-object mask gallery, results table,
-and downloadable `composite.png`, `masks/*.png`, `result.json` (COCO-style annotations).
+Outputs: overlay composite, per-object masks, an instances table, warnings,
+and downloadable `composite.png`, `masks/*.png`, `result.json`, all served from `/outputs/`.
 
-| Mode    | Backend                                     | Prompts used                       |
-|---------|---------------------------------------------|------------------------------------|
-| Text    | `Sam3Model` (PCS)                           | text + optional pos/neg boxes      |
-| Box     | `Sam3Model` (PCS, visual prompt)            | pos/neg boxes                      |
-| Point   | `Sam3TrackerModel` (PVS)                    | pos/neg points                     |
-| Mixed   | both                                        | text + boxes + points, merged      |
+## API
 
-### CLI (one-shot)
+| Method | Path        | Description                                    |
+|--------|-------------|------------------------------------------------|
+| GET    | `/`         | web UI                                         |
+| GET    | `/docs`     | interactive OpenAPI docs                       |
+| GET    | `/health`   | engine status (mock / device / model loaded)   |
+| GET    | `/config`   | effective configuration (token masked)        |
+| POST   | `/segment`  | run segmentation (multipart form)              |
+| GET    | `/outputs/…`| saved composites / masks / JSON                |
+
+Example:
+
+```bash
+curl -X POST http://localhost:7860/segment \
+  -F image=@photos/street.jpg \
+  -F mode=text \
+  -F text="yellow school bus" \
+  -F boxes_positive='[[10,10,200,300]]' \
+  -F score_threshold=0.4 \
+  -F opacity=0.6
+```
+
+Multipart fields: `image`, `mode`, `text`, `points_positive`, `points_negative`,
+`boxes_positive`, `boxes_negative` (JSON arrays), `score_threshold`, `mask_threshold`,
+`max_masks`, `opacity`, `show_semantic`.
+The response contains `composite` and per-instance `mask` PNG data URIs plus `files` URLs.
+
+### CLI (one-shot, no server)
 
 ```bash
 # text
@@ -141,28 +89,72 @@ make segment ARGS="--image img.jpg --box 100,150,500,450"
 make segment ARGS="--image img.jpg --text handle --negative-box 40,183,318,204 --mode mixed"
 ```
 
+## Hugging Face login (required for gated private checkpoints)
+
+Some SAM3 checkpoints are gated — first authorize your account on
+[huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), then
+log in with **one single variable**:
+
+```bash
+echo "SAM_HF_TOKEN=hf_xxx" >> .env      # .env is gitignored
+```
+
+That's the only login variable. If it's set, the app automatically exports it as
+`HF_TOKEN` and calls `huggingface_hub.login(token)` at startup, and downloads
+directly from `huggingface.co` (no mirror).
+
+```bash
+make login-status     # hf auth whoami
+make config           # shows token status: hf_auth = configured (***xxxx)
+```
+
+## Makefile targets
+
+```bash
+make help        # show all targets (default)
+make run         # install deps + load SAM3 once + start FastAPI  (PORT=7861 overrides)
+make run-dev     # FastAPI with uvicorn auto-reload (development)
+make run-mock    # start without downloading the model (mock engine)
+make setup       # uv sync — .venv + deps from uv.lock (auto-run by make run)
+make env         # copy .env.example -> .env
+make segment     # one-shot CLI:  make segment ARGS="--image a.jpg --text car"
+make config      # print effective configuration
+make login       # log in to Hugging Face (make login TOKEN=hf_xxx)
+make login-status# check the Hugging Face login
+make test        # uv run pytest
+make lint        # uv run ruff
+make fmt         # uv run ruff (fix + format)
+make check       # lint + tests
+make preload     # download & cache the model ahead of time
+make lock        # regenerate uv.lock
+make update      # upgrade dependencies and refresh uv.lock
+make clean purge # cleanup
+```
+
+Everything runs through `uv` (`uv sync`, `uv run`, `uv lock`), and `uv.lock` is committed for
+reproducible installs. `make run` is the only command you need.
+
 ## Configuration (pydantic + `.env`)
 
 Settings live in [`app/config.py`](app/config.py) (`SamSettings`, `pydantic-settings`).
 Copy `.env.example` → `.env` (`make env`) and override anything with the `SAM_` prefix.
 
-| Variable                    | Default           | Meaning                                        |
-|-----------------------------|-------------------|------------------------------------------------|
-| `SAM_MODEL_ID`              | `facebook/sam3`   | PCS model HF ID / local path                   |
-| `SAM_TRACKER_MODEL_ID`      | `facebook/sam3`   | tracker model (defaults to `model_id`)         |
-| `SAM_DEVICE`                | `auto`            | `auto/cpu/cuda/mps/xpu`                        |
-| `SAM_DTYPE`                 | `auto`            | `auto/float32/float16/bfloat16`                |
-| `SAM_LAZY_LOAD`             | `false`           | `false` = load once at startup (default)       |
-| `SAM_LOCAL_FILES_ONLY`      | `false`           | never contact the hub                          |
-| `SAM_SCORE_THRESHOLD`       | `0.30`            | PCS score threshold                            |
-| `SAM_MASK_THRESHOLD`        | `0.50`            | mask binarization threshold                    |
-| `SAM_IOU_MERGE_THRESHOLD`   | `0.70`            | dedupe overlapping instances                   |
-| `SAM_MAX_MASKS`             | `100`             | cap on instances                               |
-| `SAM_HOST` / `SAM_PORT`     | `0.0.0.0` / `7860`| UI bind address                                |
-| `SAM_SHARE`                 | `false`           | public gradio share link                       |
-| `SAM_OUTPUT_DIR`            | `outputs`         | where results are saved                        |
-| `SAM_HF_TOKEN`               | —                 | the ONLY Hugging Face login variable           |
-| `SAM_MOCK`                  | `false`           | synthetic engine (dev/tests, no download)      |
+| Variable                  | Default          | Meaning                                 |
+|---------------------------|------------------|-----------------------------------------|
+| `SAM_MODEL_ID`            | `facebook/sam3`  | PCS model HF ID / local path            |
+| `SAM_TRACKER_MODEL_ID`    | `facebook/sam3`  | tracker model (defaults to `model_id`)  |
+| `SAM_DEVICE`              | `auto`           | `auto/cpu/cuda/mps/xpu`                 |
+| `SAM_DTYPE`               | `auto`           | `auto/float32/float16/bfloat16`         |
+| `SAM_LAZY_LOAD`           | `false`          | `false` = load once at startup (default)|
+| `SAM_LOCAL_FILES_ONLY`    | `false`          | never contact the hub                   |
+| `SAM_SCORE_THRESHOLD`     | `0.30`           | PCS score threshold                     |
+| `SAM_MASK_THRESHOLD`      | `0.50`           | mask binarization threshold             |
+| `SAM_IOU_MERGE_THRESHOLD` | `0.70`           | dedupe overlapping instances            |
+| `SAM_MAX_MASKS`           | `100`            | cap on instances                        |
+| `SAM_HOST` / `SAM_PORT`   | `0.0.0.0` / `7860` | server bind address                  |
+| `SAM_OUTPUT_DIR`          | `outputs`        | where results are saved                 |
+| `SAM_HF_TOKEN`            | —                | the ONLY Hugging Face login variable    |
+| `SAM_MOCK`                | `false`          | synthetic engine (dev/tests)            |
 
 Verify with `make config`.
 
@@ -170,18 +162,19 @@ Verify with `make config`.
 
 ```
 app/
+  api.py           # FastAPI app (routes + startup preload)
+  static/index.html# web UI (vanilla HTML/CSS/JS)
   config.py        # pydantic-settings + .env
   schemas.py       # PromptSet / MaskInstance / SegmentationResult
-  annotations.py   # editor strokes -> points/boxes (colors, connected components)
+  annotations.py   # point clustering, negative-point→box helpers
   segmentation.py  # SAM3 PCS + tracker engines, merging, lazy loading
-  visualization.py # overlay, gallery, result export (PNG + JSON)
-  ui.py            # Gradio interface
-  main.py          # UI entry point (python -m app.main)
+  visualization.py # overlay, result export (PNG + JSON)
+  main.py          # server entry point (python -m app.main)
   cli.py           # one-shot CLI (python -m app.cli)
 Makefile           # setup/run/test/lint/help (uses uv; `make login` authenticates with HF)
 uv.lock            # reproducible dependency lockfile
 .env.example       # documented configuration template
-tests/             # pytest suite
+tests/             # pytest suite (incl. FastAPI TestClient)
 ```
 
 ## Development
@@ -189,21 +182,20 @@ tests/             # pytest suite
 ```bash
 make setup       # uv sync
 make check       # uv run ruff + uv run pytest
+make run-dev     # FastAPI with auto-reload
 make run-mock    # verify the UI without downloading weights
 ```
 
 ## Notes
 
 - Both `Sam3Model` (text/boxes) and `Sam3TrackerModel` (points) are loaded from the
-  same `facebook/sam3` checkpoint and loaded **once at startup** — the first
-  text/box and the first point request are both instant.
+  same `facebook/sam3` checkpoint and loaded **once at startup** (`SAM_LAZY_LOAD=false`
+  is the default), so the first text/box and the first point request are both instant.
+  Set `SAM_LAZY_LOAD=true` (or `--lazy`) to open the server immediately and load on
+  first request.
 - **CPU works fine for trying it out** — expect roughly 30–120 s per image and
   ~6 GB RAM. Use a small image and one prompt for the first try. For real work,
   use a GPU (`SAM_DEVICE=cuda` in `.env`).
-- Both models (PCS + tracker) load **once at startup** (`SAM_LAZY_LOAD=false` is
-  the default), so the first text/box and the first point request are both
-  instant. Set `SAM_LAZY_LOAD=true` (or `make run` + `--lazy`) if you want the
-  server to open instantly and load only on the first request.
 - Downloads come directly from `huggingface.co` (no mirror). If the download
   fails, check your token with `make login-status` or preload once with
   `make preload`.

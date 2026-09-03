@@ -36,10 +36,11 @@ def test_thresholds_clamped():
     assert s.mask_threshold == 0.0
 
 
-def test_auth_tuple():
-    assert SamSettings(gradio_auth="user:secret", _env_file=None).auth_tuple == ("user", "secret")
-    assert SamSettings(gradio_auth="nocolon", _env_file=None).auth_tuple is None
-    assert SamSettings(_env_file=None).auth_tuple is None
+def test_no_gradio_settings():
+    """Gradio-specific settings are gone in the FastAPI version."""
+    s = SamSettings(_env_file=None)
+    for name in ("share", "gradio_auth", "gradio_root_path", "queue_concurrency", "max_file_size"):
+        assert not hasattr(s, name)
 
 
 def test_model_dump_masks_token():

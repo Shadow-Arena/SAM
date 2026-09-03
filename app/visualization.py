@@ -102,24 +102,6 @@ def overlay_semantic(image: Image.Image, semantic_mask: np.ndarray, opacity: flo
     return Image.alpha_composite(image, Image.fromarray(rgba, "RGBA")).convert("RGB")
 
 
-def gallery_item(image: Image.Image, inst: MaskInstance) -> Image.Image:
-    """A single object: dimmed original with its mask + label."""
-    base = image.convert("RGB")
-    arr = np.asarray(base).copy().astype(np.float32)
-    dimmed = (arr * 0.35).astype(np.uint8)
-    arr[inst.mask] = arr[inst.mask] // 2 + 128
-    item = Image.fromarray(np.where(inst.mask[..., None], arr, dimmed).astype(np.uint8))
-    draw = ImageDraw.Draw(item)
-    label = f"#{inst.object_id}" + (f" {inst.source}" if inst.source else "")
-    if inst.score is not None:
-        label += f" ({inst.score:.2f})"
-    font = _load_font(max(12, min(item.size) // 40))
-    tbox = draw.textbbox((4, 4), label, font=font)
-    draw.rectangle([tbox[0] - 2, tbox[1] - 1, tbox[2] + 2, tbox[3] + 2], fill=(255, 255, 255, 220))
-    draw.text((tbox[0], tbox[1]), label, fill=(10, 10, 10), font=font)
-    return item
-
-
 def save_result(image: Image.Image, result: SegmentationResult, output_dir: Path, run_id: str) -> dict[str, str]:
     """Persist composite, per-instance masks, semantic mask and JSON.
 

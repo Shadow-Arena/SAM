@@ -3,24 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
 
 import numpy as np
 
 XYXY = tuple[int, int, int, int]
 Point = tuple[int, int]
-
-
-@dataclass
-class PromptAnnotation:
-    """One stroke extracted from the image editor."""
-
-    kind: Literal["point", "box"]
-    xyxy: XYXY
-    point: Point | None = None
-    positive: bool = True
-    color: tuple[int, int, int] = (0, 0, 0)
-    area: int = 0
 
 
 @dataclass

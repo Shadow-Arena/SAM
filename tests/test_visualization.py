@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.schemas import MaskInstance, SegmentationResult
-from app.visualization import gallery_item, overlay_masks, overlay_semantic, save_result
+from app.visualization import overlay_masks, overlay_semantic, save_result
 
 
 def test_overlay_masks(sample_image):
@@ -25,15 +25,6 @@ def test_overlay_semantic(sample_image):
     sem[20:40, 20:40] = True
     out = overlay_semantic(sample_image, sem)
     assert out.size == sample_image.size
-
-
-def test_gallery_item(sample_image):
-    import numpy as np
-
-    mask = np.zeros((200, 300), dtype=bool)
-    mask[50:150, 100:220] = True
-    item = gallery_item(sample_image, MaskInstance(mask=mask, score=0.5, box=(100, 50, 220, 150), source="point"))
-    assert item.size == sample_image.size
 
 
 def test_save_result(sample_image, settings):

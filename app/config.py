@@ -113,14 +113,9 @@ class SamSettings(BaseSettings):
         default="positive", description="Sign used when a stroke color cannot be classified as green or red."
     )
 
-    # ------------------------------------------------------------------- ui
+    # ------------------------------------------------------------------- server
     host: str = "0.0.0.0"
     port: int = Field(default=7860, ge=1, le=65535)
-    share: bool = False
-    gradio_auth: str | None = Field(default=None, description="Optional 'user:password' for the UI.")
-    gradio_root_path: str | None = Field(default=None, description="Sub-path if the app is behind a reverse proxy.")
-    queue_concurrency: int = Field(default=2, ge=1, le=64)
-    max_file_size: str = Field(default="200mb", description="Max upload size accepted by Gradio.")
 
     # ----------------------------------------------------------------- paths
     output_dir: Path = Field(default=Path("outputs"), description="Where composite images / masks / JSON are saved.")
@@ -179,13 +174,6 @@ class SamSettings(BaseSettings):
         # Export afterwards so transformers uses the exact same token.
         os.environ["HF_TOKEN"] = token
         os.environ["HUGGINGFACEHUB_API_TOKEN"] = token
-
-    @property
-    def auth_tuple(self) -> tuple[str, str] | None:
-        if not self.gradio_auth or ":" not in self.gradio_auth:
-            return None
-        user, _, password = self.gradio_auth.partition(":")
-        return (user.strip(), password)
 
     def model_dump_safe(self) -> dict:
         data = self.model_dump(mode="json")
