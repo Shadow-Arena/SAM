@@ -20,8 +20,11 @@ export default function ResultsPanel({ result, original, onZoom }: Props) {
         </div>
         <div className="card-body">
           <div className="results-empty">
-            <div className="empty-icon">📊</div>
-            <p>Results will appear here after you run a segmentation.</p>
+            <div className="empty-icon">
+              <BarChart3 size={32} strokeWidth={1.6} />
+            </div>
+            <p className="empty-title">No results yet</p>
+            <p className="empty-sub">Add a prompt and run a segmentation to see outputs here.</p>
           </div>
         </div>
       </section>

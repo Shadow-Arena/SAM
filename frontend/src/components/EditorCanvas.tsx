@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { ImagePlus, Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import type { LoadedImage, Point, PromptState, Tool } from "../types";
 import {
   DRAG_THRESHOLD_IMAGE_PX,
@@ -272,8 +272,11 @@ export default function EditorCanvas({ image, tool, prompts, view, onViewChange,
         </div>
         {!image && (
           <div className="empty-state">
-            <div className="empty-icon">🖼️</div>
-            <p>No image loaded — upload one in the sidebar.</p>
+            <div className="empty-icon">
+              <ImagePlus size={34} strokeWidth={1.6} />
+            </div>
+            <p className="empty-title">No image loaded</p>
+            <p className="empty-sub">Upload one in the sidebar, or drag &amp; paste it anywhere.</p>
           </div>
         )}
       </div>

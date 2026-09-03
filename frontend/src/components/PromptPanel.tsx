@@ -109,14 +109,23 @@ export default function PromptPanel({
         </div>
 
         <div className="field">
-          <label htmlFor="mode">Mode</label>
-          <select id="mode" value={mode} onChange={(e) => onMode(e.target.value as Mode)}>
+          <label>Mode</label>
+          <div className="mode-tabs" role="radiogroup" aria-label="Segmentation mode">
             {MODE_OPTIONS.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label} — {m.desc}
-              </option>
+              <button
+                key={m.value}
+                type="button"
+                role="radio"
+                aria-checked={mode === m.value}
+                className={`mode-tab ${mode === m.value ? "active" : ""}`}
+                onClick={() => onMode(m.value)}
+                title={m.desc}
+              >
+                {m.label}
+              </button>
             ))}
-          </select>
+          </div>
+          <p className="mode-desc">{MODE_OPTIONS.find((m) => m.value === mode)?.desc}</p>
         </div>
 
         <AdvancedSettings settings={settings} onChange={onSettings} />
