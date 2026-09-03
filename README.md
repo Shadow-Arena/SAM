@@ -210,6 +210,40 @@ make frontend-build   # rebuild frontend/ → src/sam3_studio/static
 make frontend-dev     # Vite dev server on :5173, proxies the API to :7860
 ```
 
+### Building the UI yourself (recommended before Docker/deploy)
+
+If you have Node.js on your machine (tested with Node 22), build from source and
+**commit the result** so the repo's `static/` bundle is always up to date:
+
+```bash
+cd frontend
+npm ci --no-audit --no-fund   # install exact deps from package-lock.json
+npm run build                 # type-check + production build → ../src/sam3_studio/static
+cd ..
+git diff --stat src/sam3_studio/static   # confirm the bundle changed/updated
+git add -A && git commit -m "ui: rebuild frontend bundle"
+git push
+```
+
+Then `make run` (or the Docker image) serves that fresh bundle.
+
+**What this is for / what it is NOT for:**
+
+| You build locally… | Result |
+|---|---|
+| Before deploying / changing the UI | ✅ Updates the committed `static/` bundle — everyone gets the new UI |
+| Just to run the app | ❌ Not needed — `make run` uses the committed bundle (no Node) |
+| For Docker | ⚠️ Not required — the Docker image rebuilds the UI **from `frontend/` source inside the image**, so it never depends on the committed bundle |
+
+So the rule is simple: **`frontend/` = source of truth, and the build must happen in CI/Docker — but building locally and committing is the correct way to keep the local running bundle fresh** (and it's what you asked for).
+
+### Quick smoke test after a local build
+
+```bash
+make run-mock     # starts FastAPI + UI without downloading the model
+# open http://localhost:7860 — check the UI looks right
+```
+
 ## Notes
 
 - Both `Sam3Model` (text/boxes) and `Sam3TrackerModel` (points) are loaded from the
