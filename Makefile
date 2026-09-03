@@ -57,28 +57,29 @@ purge: clean ## Clean + remove .venv and outputs
 	@echo "Removed .venv/ and outputs/. Re-run 'make setup'."
 
 # ------------------------------------------------------------------ run
+# Running always ensures deps are installed first (`uv sync` is incremental).
 .PHONY: run
-run: check-uv ## Launch the interactive Gradio app (make run PORT=7861)
+run: setup ## Launch the interactive Gradio app (make run PORT=7861) [auto-installs deps]
 	$(PYTHON) -m app.main --host $(HOST) --port $(PORT)
 
 .PHONY: run-mock
-run-mock: check-uv ## Launch the app WITHOUT downloading the model (synthetic mock engine)
+run-mock: setup ## Launch the app WITHOUT downloading the model (synthetic mock engine)
 	SAM_MOCK=true $(PYTHON) -m app.main --host $(HOST) --port $(PORT)
 
 .PHONY: run-share
-run-share: check-uv ## Launch the app with a public gradio.live link (Colab/Kaggle/remote)
+run-share: setup ## Launch the app with a public gradio.live link (Colab/Kaggle/remote)
 	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --share
 
 .PHONY: run-preload
-run-preload: check-uv ## Load the model at startup (same as default `make run`; explicit)
+run-preload: setup ## Load the model at startup (same as default `make run`; explicit)
 	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --preload
 
 .PHONY: segment
-segment: check-uv ## One-shot CLI segmentation: make segment ARGS="--image a.jpg --text car"
+segment: setup ## One-shot CLI segmentation: make segment ARGS="--image a.jpg --text car"
 	$(PYTHON) -m app.cli $(ARGS)
 
 .PHONY: config
-config: check-uv ## Print the effective configuration (values from .env / env vars)
+config: setup ## Print the effective configuration (values from .env / env vars)
 	$(PYTHON) -m app.main --config
 
 # -------------------------------------------------------------- quality

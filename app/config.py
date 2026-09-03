@@ -168,15 +168,18 @@ class SamSettings(BaseSettings):
         token = self.hf_token
         if not token:
             return
-        os.environ["HF_TOKEN"] = token
-        os.environ["HUGGINGFACEHUB_API_TOKEN"] = token
         try:
+            # Login FIRST (before exporting HF_TOKEN) to avoid huggingface_hub's
+            # "HF_TOKEN env is set" warning — the token from .env is used.
             from huggingface_hub import login
 
             login(token=token, add_to_git_credential=False)
             logger.info("Hugging Face login: authenticated with SAM_HF_TOKEN.")
         except Exception as exc:  # noqa: BLE001
             logger.warning("Hugging Face login failed (continuing with HF_TOKEN env var): %s", exc)
+        # Export afterwards so transformers uses the exact same token.
+        os.environ["HF_TOKEN"] = token
+        os.environ["HUGGINGFACEHUB_API_TOKEN"] = token
 
     @property
     def auth_tuple(self) -> tuple[str, str] | None:

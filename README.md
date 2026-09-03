@@ -20,9 +20,11 @@ Requires **Python ≥ 3.10** and [uv](https://docs.astral.sh/uv/):
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh   # or: pip install uv
 
-make setup      # uv sync: creates .venv, installs deps from uv.lock
-make run        # launch UI at http://0.0.0.0:7860
+make run        # ONE command: installs deps (uv sync), loads SAM3 once, opens the UI
 ```
+
+`make run` auto-runs `uv sync` first (incremental, so repeated runs are fast), then
+loads the model **once** and starts the app at http://0.0.0.0:7860.
 
 > The first segmentation downloads `facebook/sam3` (~several GB). For a UI smoke test **without** the model:
 >
@@ -90,7 +92,7 @@ make config           # shows token status: hf_auth = configured (***xxxx)
 
 ```bash
 make help        # show all targets (default)
-make setup       # uv sync — .venv + deps from uv.lock (dev group included)
+make setup       # uv sync — .venv + deps from uv.lock (also auto-run by make run)
 make lock        # regenerate uv.lock
 make update      # upgrade dependencies and refresh uv.lock
 make env         # copy .env.example -> .env

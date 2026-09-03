@@ -13,6 +13,7 @@ authors = [{ name = "Shadow-Arena" }]
 dependencies = [
     "transformers>=5.0.0",
     "torch>=2.2",
+    "torchvision>=0.17",
     "gradio>=5.0,<7",
     "pydantic>=2.5",
     "pydantic-settings>=2.2",
