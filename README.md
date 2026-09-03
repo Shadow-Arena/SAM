@@ -3,7 +3,7 @@
 Interactive **image segmentation** app powered by Meta's **SAM3** (Segment Anything Model 3) through 🤗 Transformers.
 Segment images using **text**, **boxes**, **points**, or a **mixed combination** — draw on the image in the browser and hit *Run*.
 
-- **FastAPI** backend (`src/sam3_studio/api`) with a single-file HTML/JS frontend.
+- **FastAPI** backend (`src/sam3_studio/api`) with a **React + TypeScript + Vite** frontend (`frontend/`), built into `src/sam3_studio/static/`.
 - **Text** — `"yellow school bus"`, `"ear"`, `"person"` → all matching instances (SAM3 Promptable Concept Segmentation).
 - **Box** — one or more positive/negative boxes.
 - **Point** — positive/negative clicks (SAM3 Tracker / Promptable Visual Segmentation).
@@ -149,7 +149,7 @@ src/sam3_studio/
   main.py            # server entry point (uvicorn)
   config.py          # pydantic-settings + .env
   domain.py          # PromptSet / MaskInstance / SegmentationResult
-  prompts.py         # point clustering, negative-point→box helpers
+  prompts.py         # point clustering, prompt tensor builders, negative-point→box
   rendering.py       # mask/semantic overlays
   export.py          # result persistence (PNG + JSON)
   engine/            # segmentation engines
@@ -159,13 +159,15 @@ src/sam3_studio/
     mock.py          #   synthetic engine (no download)
     factory.py       #   create_engine / get_engine singleton
   api/               # FastAPI layer
-    app.py           #   create_app (routes + startup preload)
+    app.py           #   create_app (routes + /static + startup preload)
     deps.py          #   form parsing / upload helpers
     schemas.py       #   pydantic response models
     routes/          #   /segment, /, /health, /config
-  static/index.html  # web UI (vanilla HTML/CSS/JS)
+  static/            # built React bundle (gitignored source in frontend/)
+frontend/            # React + TypeScript + Vite UI source
+  src/               #   components/, App.tsx, api.ts, styles.css
 tests/               # pytest suite (unit/ + api/ + entry/)
-Makefile             # setup/run/test/lint/help (uses uv; `make login` authenticates with HF)
+Makefile             # setup/run/test/lint/help + frontend targets (uses uv; `make login` authenticates with HF)
 uv.lock              # reproducible dependency lockfile
 .env.example         # documented configuration template
 ```
@@ -177,6 +179,15 @@ make setup       # uv sync
 make check       # uv run ruff + uv run pytest
 make run-dev     # FastAPI with auto-reload
 make run-mock    # verify the UI without downloading weights
+```
+
+### Frontend
+
+The production bundle is committed, so `make run` needs no Node. To work on the UI:
+
+```bash
+make frontend-build   # rebuild frontend/ → src/sam3_studio/static
+make frontend-dev     # Vite dev server on :5173, proxies the API to :7860
 ```
 
 ## Notes
