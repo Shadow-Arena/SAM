@@ -23,24 +23,25 @@ def _png_bytes(img: Image.Image) -> bytes:
     return buf.getvalue()
 
 
-def test_root_serves_ui(client):
+def test_root_is_api_index(client):
+    """The backend serves JSON only — the UI is a separate frontend service."""
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "SAM3 Segment Studio" in resp.text
-    # The React bundle is built into static/ and referenced via /static/assets.
-    assert "/static/assets/" in resp.text
+    data = resp.json()
+    assert data["service"] == "sam3-studio-api"
+    assert data["segment"] == "/segment"
+    assert data["health"] == "/health"
+    # No HTML/static from the backend.
+    assert "text/html" not in resp.headers.get("content-type", "")
 
 
-def test_static_assets_are_served(client):
-    resp = client.get("/")
+def test_cors_allowlist(client):
+    resp = client.get("/health", headers={"Origin": "http://localhost:5173"})
     assert resp.status_code == 200
-    import re
+    assert resp.headers.get("access-control-allow-origin") == "http://localhost:5173"
 
-    asset = re.search(r'href="(/static/assets/[^"]+\.css)"', resp.text)
-    assert asset, "expected a CSS asset link in the built index.html"
-    css = client.get(asset.group(1))
-    assert css.status_code == 200
-    assert "text/css" in css.headers["content-type"]
+    resp = client.get("/health", headers={"Origin": "http://evil.example"})
+    assert "access-control-allow-origin" not in resp.headers
 
 
 def test_health(client, settings):

@@ -8,7 +8,8 @@ SHELL        := /bin/bash
 UV           ?= uv
 PYTHON       := $(UV) run python
 HOST         ?= 0.0.0.0
-PORT         ?= 7860
+PORT         ?= 8000      # API backend port (frontend proxies to it)
+UI_PORT      ?= 7860      # frontend dev/preview port
 .DEFAULT_GOAL := help
 
 # ---------------------------------------------------------------------- help
@@ -57,7 +58,7 @@ purge: clean ## Clean + remove .venv and outputs
 	@echo "Removed .venv/ and outputs/. Re-run 'make setup'."
 
 .PHONY: run
-run: setup ## Launch the FastAPI server (make run PORT=7861) [auto-installs deps]
+run: setup ## Launch the FastAPI API server (default :8000) [auto-installs deps]
 	$(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT)
 
 .PHONY: run-dev
@@ -65,7 +66,7 @@ run-dev: setup ## Launch FastAPI with uvicorn auto-reload (development)
 	$(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT) --reload
 
 .PHONY: run-mock
-run-mock: setup ## Launch the app WITHOUT downloading the model (synthetic mock engine)
+run-mock: setup ## Launch the API with a mock engine (no model download)
 	SAM_MOCK=true $(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT)
 
 .PHONY: config
@@ -109,21 +110,33 @@ frontend-setup: ## Install frontend dependencies (npm ci in frontend/)
 	cd frontend && npm ci --no-audit --no-fund
 
 .PHONY: frontend-dev
-frontend-dev: frontend-setup ## Vite dev server (port 5173, proxies API to :7860)
+frontend-dev: frontend-setup ## Vite dev server (port 5173, proxies API to :8000)
 	cd frontend && npm run dev
 
 .PHONY: frontend-build
-frontend-build: frontend-setup ## Build the UI into src/sam3_studio/static
+frontend-build: frontend-setup ## Build the React app into frontend/dist
 	cd frontend && npm run build
+
+.PHONY: frontend-preview
+frontend-preview: frontend-build ## Serve the built UI on :7860 (proxies API to :8000)
+	cd frontend && VITE_API_TARGET=http://127.0.0.1:$(PORT) npm run preview -- --port $(UI_PORT)
 
 # ------------------------------------------------------------------ docker
 .PHONY: docker
-docker: ## Build the production image (multi-stage: React build + Python runtime)
-	docker build -t sam3-studio:latest .
+docker: ## Build backend + frontend images
+	docker compose build
 
-.PHONY: docker-run
-docker-run: docker ## Run the image on :7860 (reads .env for SAM_HF_TOKEN)
-	docker run --rm -p 7860:7860 --env-file .env sam3-studio:latest
+.PHONY: docker-up
+docker-up: ## Start the full stack (API + Nginx UI) on :7860
+	docker compose up -d --build
+
+.PHONY: docker-down
+docker-down: ## Stop the stack
+	docker compose down
+
+.PHONY: docker-logs
+docker-logs: ## Stream stack logs
+	docker compose logs -f
 
 # ------------------------------------------------------------------ misc
 .PHONY: preload

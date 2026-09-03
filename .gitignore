@@ -31,3 +31,7 @@ outputs/
 
 # Node / frontend
 frontend/node_modules/
+
+# Frontend build output & env
+frontend/dist/
+frontend/.env

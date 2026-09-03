@@ -107,7 +107,13 @@ class SamSettings(BaseSettings):
 
     # ----------------------------------------------------------------- server
     host: str = "0.0.0.0"
-    port: int = Field(default=7860, ge=1, le=65535)
+    port: int = Field(default=8000, ge=1, le=65535)
+    # Comma-separated list of origins allowed to call this API cross-origin
+    # (the React frontend runs on its own origin/host in dev and in Docker).
+    cors_origins: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173,http://localhost:7860,http://127.0.0.1:7860",
+        description="CORS allowlist (comma-separated origins) for the separately-hosted frontend.",
+    )
 
     # ----------------------------------------------------------------- paths
     output_dir: Path = Field(default=Path("outputs"), description="Where composite images / masks / JSON are saved.")

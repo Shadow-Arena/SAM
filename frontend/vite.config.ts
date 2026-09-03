@@ -4,14 +4,24 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const root = fileURLToPath(new URL(".", import.meta.url));
+const apiTarget = process.env.VITE_API_TARGET ?? "http://127.0.0.1:8000";
+
+const proxy = {
+  "/segment": apiTarget,
+  "/health": apiTarget,
+  "/config": apiTarget,
+  "/outputs": apiTarget,
+  "/docs": apiTarget,
+  "/openapi.json": apiTarget,
+};
 
 export default defineConfig({
   plugins: [react()],
-  // Assets are served by FastAPI under /static, and GET / serves the built
-  // index.html, so the production bundle must reference /static/... paths.
-  base: "/static/",
+  // The frontend is a standalone app: it owns its output (dist/) and is
+  // served by its own process (Vite dev/preview, or Nginx in Docker).
+  base: "/",
   build: {
-    outDir: resolve(root, "../src/sam3_studio/static"),
+    outDir: resolve(root, "dist"),
     emptyOutDir: true,
     sourcemap: false,
     target: "es2022",
@@ -19,11 +29,14 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
-    proxy: {
-      "/health": "http://127.0.0.1:7860",
-      "/config": "http://127.0.0.1:7860",
-      "/segment": "http://127.0.0.1:7860",
-      "/outputs": "http://127.0.0.1:7860",
-    },
+    proxy,
+  },
+  preview: {
+    host: "0.0.0.0",
+    port: 7860,
+    proxy,
+    // Accept sandbox/preview hostnames (dev/preview environments only —
+    // production uses Nginx, which has no such check).
+    allowedHosts: [".e2b.app", ".local", "localhost", "127.0.0.1"],
   },
 });

@@ -3,54 +3,72 @@
 Interactive **image segmentation** app powered by Meta's **SAM3** (Segment Anything Model 3) through 🤗 Transformers.
 Segment images using **text**, **boxes**, **points**, or a **mixed combination** — draw on the image in the browser and hit *Run*.
 
-- **FastAPI** backend (`src/sam3_studio/api`) with a **React + TypeScript + Vite** frontend (`frontend/`), built into `src/sam3_studio/static/`.
+- **API backend** — FastAPI (`src/sam3_studio/api`), **no UI**; serves `/segment`, `/health`, `/config`, `/outputs`.
+- **Frontend** — standalone **React + TypeScript + Vite** app in `frontend/`, runs and builds on its own, served by Vite (dev/preview) or **Nginx** (Docker).
+- **Production** — `docker compose up --build` runs both as separate services; Nginx serves the UI and reverse-proxies the API.
 - **Text** — `"yellow school bus"`, `"ear"`, `"person"` → all matching instances (SAM3 Promptable Concept Segmentation).
 - **Box** — one or more positive/negative boxes.
 - **Point** — positive/negative clicks (SAM3 Tracker / Promptable Visual Segmentation).
 - **Mixed** — text + boxes + points together; results merged and deduplicated.
-- Pydantic config (`.env`) and `Makefile` with `help`.
+- Pydantic config (`.env`), CORS allowlist for the separate frontend, and `Makefile` with `help`.
 
 ---
 
-## Quick start
+## Architecture
 
-Requires **Python ≥ 3.10** and [uv](https://docs.astral.sh/uv/):
+```text
+┌─────────────────────────────┐        ┌──────────────────────────────┐
+│  frontend/  (React + Vite)  │  HTTP  │  src/sam3_studio  (FastAPI)  │
+│  :5173 dev · :7860 preview  │ ─────▶ │  :8000 API                   │
+│  Nginx in Docker (port 80)  │ proxies│  /segment /health /outputs   │
+└─────────────────────────────┘        └──────────────────────────────┘
+```
+
+- The backend **never serves HTML** — it is a pure REST API with CORS.
+- The frontend is **fully independent**: own `package.json`, build output (`frontend/dist/`), Dockerfile, and Nginx config.
+- In production Nginx proxies `/segment`, `/health`, `/config`, `/outputs`, `/docs` to the `backend` container.
+
+## Quick start (local dev, two terminals)
+
+Requires **Python ≥ 3.10** + [uv](https://docs.astral.sh/uv/) and **Node 18+** (20/22 recommended):
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh   # or: pip install uv
 
-make run        # ONE command: installs deps (uv sync), loads SAM3 once, starts the server
+# Terminal 1 — API backend
+make run          # installs deps (uv sync), loads SAM3 once, serves API on :8000
+
+# Terminal 2 — frontend
+make frontend-dev  # Vite dev server on :5173, proxies API to :8000
 ```
 
-`make run` auto-runs `uv sync` first (incremental, so repeated runs are fast), then
-loads the model **once** and starts the app at http://0.0.0.0:7860.
-Open that URL in your browser; interactive API docs live at `/docs`.
+Open **http://localhost:5173**. API docs: **http://localhost:8000/docs**.
 
-> The first start downloads `facebook/sam3` (~several GB). For a UI smoke test **without** the model:
+> The first real start downloads `facebook/sam3` (~several GB). Smoke-test without the model:
 >
 > ```bash
+> # Terminal 1
 > make run-mock
+> # Terminal 2
+> make frontend-preview    # builds the UI and serves it on :7860
 > ```
+> Then open **http://localhost:7860**.
 
-## Docker
+## Docker Compose (production)
 
-The image is **multi-stage**: the React UI is built from `frontend/` **inside** the image,
-then the Python runtime installs deps from `uv.lock` — fully reproducible, never stale.
-
-```bash
-make docker          # docker build -t sam3-studio:latest .
-make docker-run      # docker run --rm -p 7860:7860 --env-file .env sam3-studio:latest
-```
-
-Or manually:
+Two independent images, orchestrated with Compose:
 
 ```bash
-docker build -t sam3-studio:latest .
-docker run --rm -p 7860:7860 --env-file .env sam3-studio:latest
+make env          # create .env (SAM_HF_TOKEN ...)
+make docker-up    # docker compose up -d --build  → http://localhost:7860
+make docker-logs
+make docker-down
 ```
 
-`--env-file .env` passes `SAM_HF_TOKEN` (and any overrides) into the container.
-The image runs on port `7860` and includes a `/health` check.
+- `backend`  — built from root `Dockerfile` (uv.lock, no dev deps), internal port `8000`.
+- `frontend` — built from `frontend/Dockerfile` (Node build → Nginx), published on `7860:80`.
+
+Both are restart-safe; `outputs/` and the HF model cache live in named volumes.
 
 ## 🖥️ Web UI
 
@@ -178,71 +196,50 @@ src/sam3_studio/
     sam3.py          #   SAM3 PCS + tracker (real model)
     mock.py          #   synthetic engine (no download)
     factory.py       #   create_engine / get_engine singleton
-  api/               # FastAPI layer
-    app.py           #   create_app (routes + /static + startup preload)
+  api/               # FastAPI layer (API ONLY — no HTML/static)
+    app.py           #   create_app (CORS + /outputs + startup preload)
     deps.py          #   form parsing / upload helpers
     schemas.py       #   pydantic response models
     routes/          #   /segment, /, /health, /config
-  static/            # built React bundle (gitignored source in frontend/)
-frontend/            # React + TypeScript + Vite UI source
+frontend/            # standalone React + TypeScript + Vite app
   src/               #   components/, App.tsx, api.ts, styles.css
+  dist/              #   build output (gitignored — generated)
+  Dockerfile         #   Node build → Nginx serving image
+  nginx.conf         #   SPA + API reverse proxy
+docker-compose.yml   # production stack (backend + frontend)
+Dockerfile           # backend image (uv.lock, API only)
 tests/               # pytest suite (unit/ + api/ + entry/)
-Makefile             # setup/run/test/lint/help + frontend targets (uses uv; `make login` authenticates with HF)
-uv.lock              # reproducible dependency lockfile
-.env.example         # documented configuration template
+Makefile             # setup/run/test/lint/help + frontend + docker targets
+uv.lock              # reproducible Python dependency lockfile
+.env.example         # documented backend configuration template
 ```
 
 ## Development
 
 ```bash
-make setup       # uv sync
-make check       # uv run ruff + uv run pytest
-make run-dev     # FastAPI with auto-reload
-make run-mock    # verify the UI without downloading weights
+# Backend (API only)
+make setup        # uv sync
+make check        # uv run ruff + uv run pytest
+make run          # FastAPI API on :8000 (mock: make run-mock)
+make run-dev      # FastAPI with auto-reload
+
+# Frontend (separate process)
+make frontend-dev      # Vite dev server on :5173 (hot reload, proxies API)
+make frontend-build    # production build → frontend/dist
+make frontend-preview  # serve the built UI on :7860 (proxies API to :8000)
 ```
 
-### Frontend
+### Serving the frontend standalone
 
-The production bundle is committed, so `make run` needs no Node. To work on the UI:
+| Tool | Command | URL |
+|---|---|---|
+| Vite dev (HMR) | `make frontend-dev` | http://localhost:5173 |
+| Built preview | `make frontend-preview` | http://localhost:7860 |
+| Nginx (Docker) | `make docker-up` | http://localhost:7860 |
 
-```bash
-make frontend-build   # rebuild frontend/ → src/sam3_studio/static
-make frontend-dev     # Vite dev server on :5173, proxies the API to :7860
-```
-
-### Building the UI yourself (recommended before Docker/deploy)
-
-If you have Node.js on your machine (tested with Node 22), build from source and
-**commit the result** so the repo's `static/` bundle is always up to date:
-
-```bash
-cd frontend
-npm ci --no-audit --no-fund   # install exact deps from package-lock.json
-npm run build                 # type-check + production build → ../src/sam3_studio/static
-cd ..
-git diff --stat src/sam3_studio/static   # confirm the bundle changed/updated
-git add -A && git commit -m "ui: rebuild frontend bundle"
-git push
-```
-
-Then `make run` (or the Docker image) serves that fresh bundle.
-
-**What this is for / what it is NOT for:**
-
-| You build locally… | Result |
-|---|---|
-| Before deploying / changing the UI | ✅ Updates the committed `static/` bundle — everyone gets the new UI |
-| Just to run the app | ❌ Not needed — `make run` uses the committed bundle (no Node) |
-| For Docker | ⚠️ Not required — the Docker image rebuilds the UI **from `frontend/` source inside the image**, so it never depends on the committed bundle |
-
-So the rule is simple: **`frontend/` = source of truth, and the build must happen in CI/Docker — but building locally and committing is the correct way to keep the local running bundle fresh** (and it's what you asked for).
-
-### Quick smoke test after a local build
-
-```bash
-make run-mock     # starts FastAPI + UI without downloading the model
-# open http://localhost:7860 — check the UI looks right
-```
+Point the built app at a backend on another origin with `VITE_API_BASE`
+(see `frontend/.env.example`); by default it uses same-origin paths and the
+serving layer proxies to the backend.
 
 ## Notes
 

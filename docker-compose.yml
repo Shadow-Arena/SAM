@@ -1,0 +1,41 @@
+# ============================================================================
+# SAM3 Segment Studio — production stack
+#
+# Two independent services:
+#   backend  — FastAPI API (uvicorn), built from the root Dockerfile
+#   frontend — React UI served by Nginx, reverse-proxies API to backend
+#
+# Usage:
+#   docker compose up --build -d     → http://localhost:7860
+#   docker compose logs -f
+#   docker compose down
+# ============================================================================
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    expose:
+      - "8000"
+    restart: unless-stopped
+    volumes:
+      - sam3-outputs:/app/outputs
+      # optional: keep the HF model cache across container rebuilds
+      - sam3-hf-cache:/root/.cache/huggingface
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "7860:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  sam3-outputs:
+  sam3-hf-cache:

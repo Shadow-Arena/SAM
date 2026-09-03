@@ -10,7 +10,8 @@ def test_defaults():
     assert s.model_id == "facebook/sam3"
     assert s.effective_tracker_model_id == "facebook/sam3"
     assert s.score_threshold == 0.30
-    assert s.port == 7860
+    assert s.port == 8000  # API port; the UI runs on its own port (7860)
+    assert "localhost:5173" in s.cors_origins
     assert s.hf_token is None
     assert s.lazy_load is False  # model loads once at startup by default
 

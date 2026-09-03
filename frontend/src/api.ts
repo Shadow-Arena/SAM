@@ -1,5 +1,15 @@
 import type { Health, SegmentationResult, SegmentSettings } from "./types";
 
+/**
+ * API base URL for the backend.
+ *
+ * - Empty by default → same-origin calls (Vite dev/preview proxy, or Nginx
+ *   reverse proxy in Docker) — nothing to configure.
+ * - Set VITE_API_BASE at build time to point at a standalone backend, e.g.
+ *   `VITE_API_BASE=http://localhost:8000 npm run build`.
+ */
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined ?? "").replace(/\/$/, "");
+
 /** Build the multipart payload for POST /segment. */
 export function buildSegmentForm(
   file: File,
@@ -29,7 +39,7 @@ export function buildSegmentForm(
 }
 
 export async function fetchHealth(): Promise<Health> {
-  const resp = await fetch("/health");
+  const resp = await fetch(`${API_BASE}/health`);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   return resp.json() as Promise<Health>;
 }
@@ -56,7 +66,7 @@ export async function runSegmentation(
     boxesNegative,
     settings,
   );
-  const resp = await fetch("/segment", { method: "POST", body: fd });
+  const resp = await fetch(`${API_BASE}/segment`, { method: "POST", body: fd });
   const data = (await resp.json().catch(() => ({}))) as Partial<SegmentationResult> & {
     detail?: string;
   };

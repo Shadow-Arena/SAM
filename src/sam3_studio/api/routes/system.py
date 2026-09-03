@@ -1,28 +1,29 @@
-"""System routes: status and configuration."""
+"""System routes: API index, status and configuration."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import JSONResponse
 
 from ...config import SamSettings
 from ..schemas import HealthResponse
 
 router = APIRouter()
-STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
 
 
 @router.get("/", include_in_schema=False)
-def index() -> FileResponse:
-    """Serve the built React UI (frontend/ → static/)."""
-    return FileResponse(STATIC_DIR / "index.html", media_type="text/html")
-
-
-@router.get("/favicon.ico", include_in_schema=False)
-def favicon() -> Response:
-    return Response(status_code=204)
+def index() -> JSONResponse:
+    """API index — the backend serves JSON only (frontend runs separately)."""
+    return JSONResponse(
+        {
+            "service": "sam3-studio-api",
+            "version": "0.4.0",
+            "docs": "/docs",
+            "health": "/health",
+            "config": "/config",
+            "segment": "/segment",
+        }
+    )
 
 
 @router.get("/health", response_model=HealthResponse)
