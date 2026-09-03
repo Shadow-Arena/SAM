@@ -1,0 +1,30 @@
+# VCS / local state
+.git
+.gitignore
+.gitattributes
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+
+# Node
+frontend/node_modules/
+
+# Secrets / runtime artifacts
+.env
+outputs/
+*.png
+!tests/**/*.png
+
+# Docs / misc
+README.md
+LICENSE
+Dockerfile
+.dockerignore

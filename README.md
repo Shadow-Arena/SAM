@@ -32,6 +32,26 @@ Open that URL in your browser; interactive API docs live at `/docs`.
 > make run-mock
 > ```
 
+## Docker
+
+The image is **multi-stage**: the React UI is built from `frontend/` **inside** the image,
+then the Python runtime installs deps from `uv.lock` — fully reproducible, never stale.
+
+```bash
+make docker          # docker build -t sam3-studio:latest .
+make docker-run      # docker run --rm -p 7860:7860 --env-file .env sam3-studio:latest
+```
+
+Or manually:
+
+```bash
+docker build -t sam3-studio:latest .
+docker run --rm -p 7860:7860 --env-file .env sam3-studio:latest
+```
+
+`--env-file .env` passes `SAM_HF_TOKEN` (and any overrides) into the container.
+The image runs on port `7860` and includes a `/health` check.
+
 ## 🖥️ Web UI
 
 1. Upload/drop an image.

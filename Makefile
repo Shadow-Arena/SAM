@@ -116,6 +116,15 @@ frontend-dev: frontend-setup ## Vite dev server (port 5173, proxies API to :7860
 frontend-build: frontend-setup ## Build the UI into src/sam3_studio/static
 	cd frontend && npm run build
 
+# ------------------------------------------------------------------ docker
+.PHONY: docker
+docker: ## Build the production image (multi-stage: React build + Python runtime)
+	docker build -t sam3-studio:latest .
+
+.PHONY: docker-run
+docker-run: docker ## Run the image on :7860 (reads .env for SAM_HF_TOKEN)
+	docker run --rm -p 7860:7860 --env-file .env sam3-studio:latest
+
 # ------------------------------------------------------------------ misc
 .PHONY: preload
 preload: check-uv ## Download & cache the SAM3 model to ~/.cache/huggingface
