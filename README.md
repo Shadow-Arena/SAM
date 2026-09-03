@@ -97,7 +97,7 @@ and downloadable `composite.png`, `masks/*.png`, `result.json`, all served from 
 Example:
 
 ```bash
-curl -X POST http://localhost:7860/segment \
+curl -X POST http://localhost:8000/segment \
   -F image=@photos/street.jpg \
   -F mode=text \
   -F text="yellow school bus" \
@@ -172,7 +172,8 @@ Copy `.env.example` → `.env` (`make env`) and override anything with the `SAM_
 | `SAM_MASK_THRESHOLD`      | `0.50`           | mask binarization threshold             |
 | `SAM_IOU_MERGE_THRESHOLD` | `0.70`           | dedupe overlapping instances            |
 | `SAM_MAX_MASKS`           | `100`            | cap on instances                        |
-| `SAM_HOST` / `SAM_PORT`   | `0.0.0.0` / `7860` | server bind address                  |
+| `SAM_HOST` / `SAM_PORT`   | `0.0.0.0` / `8000` | API bind address (UI runs on 5173/7860) |
+| `SAM_CORS_ORIGINS`        | localhost:5173,7860 | comma-separated origins allowed to call the API |
 | `SAM_OUTPUT_DIR`          | `outputs`        | where results are saved                 |
 | `SAM_HF_TOKEN`            | —                | the ONLY Hugging Face login variable    |
 | `SAM_MOCK`                | `false`          | synthetic engine (dev/tests)            |

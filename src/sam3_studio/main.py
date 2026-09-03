@@ -1,7 +1,7 @@
-"""Entry point: launch the FastAPI server.
+"""Entry point: launch the FastAPI API server.
 
 Usage:
-    python -m sam3_studio.main [--host 0.0.0.0] [--port 7860] [--mock] [--lazy] [--reload]
+    python -m sam3_studio.main [--host 0.0.0.0] [--port 8000] [--mock] [--lazy] [--reload]
 """
 
 from __future__ import annotations

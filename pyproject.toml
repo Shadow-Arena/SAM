@@ -42,9 +42,6 @@ default-groups = ["dev"]
 where = ["src"]
 include = ["sam3_studio*"]
 
-[tool.setuptools.package-data]
-sam3_studio = ["static/*.html"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

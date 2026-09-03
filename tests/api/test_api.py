@@ -158,3 +158,19 @@ def test_outputs_downloadable(client, settings, sample_image):
     dl = client.get(url)
     assert dl.status_code == 200
     assert dl.json()["num_instances"] >= 2
+
+
+def test_saved_composite_matches_inline(client, settings, sample_image):
+    """Regression: the saved composite must be the SAME rendered image as the
+    inline data URI — save_result used to re-overlay it (double overlay)."""
+    import base64
+
+    resp = client.post(
+        "/segment",
+        files={"image": ("test.png", _png_bytes(sample_image), "image/png")},
+        data={"mode": "text", "text": "car", "opacity": "0.7"},
+    )
+    body = resp.json()
+    inline = base64.b64decode(body["composite"].split(",", 1)[1])
+    saved = client.get(body["files"]["composite"]).content
+    assert inline == saved

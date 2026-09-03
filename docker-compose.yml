@@ -17,13 +17,20 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - .env
+      - path: .env
+        required: false
+    # Pin the API port inside the container so a stale SAM_PORT in .env
+    # (e.g. the old 7860) can never break the Nginx proxy.
+    environment:
+      SAM_HOST: 0.0.0.0
+      SAM_PORT: "8000"
+      SAM_CORS_ORIGINS: "http://localhost:7860,http://127.0.0.1:7860"
     expose:
       - "8000"
     restart: unless-stopped
     volumes:
       - sam3-outputs:/app/outputs
-      # optional: keep the HF model cache across container rebuilds
+      # keep the HF model cache across container rebuilds
       - sam3-hf-cache:/root/.cache/huggingface
 
   frontend:
@@ -32,8 +39,11 @@ services:
       dockerfile: Dockerfile
     ports:
       - "7860:80"
+    # Wait until the API is actually healthy (its image has a /health check)
+    # so Nginx resolves the backend FQDN only after it is reachable.
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

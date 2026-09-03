@@ -57,7 +57,7 @@ def create_app(settings: SamSettings | None = None, engine: Engine | None = None
     # or any deployment origin) to call this API cross-origin.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=settings.cors_origin_list,
         allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],

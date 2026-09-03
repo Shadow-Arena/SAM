@@ -48,7 +48,7 @@ update: check-uv ## Upgrade dependencies and refresh uv.lock
 
 .PHONY: clean
 clean: ## Remove caches and build artifacts
-	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache
+	rm -rf build dist *.egg-info .pytest_cache .ruff_cache .mypy_cache frontend/dist
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	@echo "Cleaned."
 
@@ -73,14 +73,14 @@ run-mock: setup ## Launch the API with a mock engine (no model download)
 # One command: start the API (background) + the Vite UI (foreground), kill the
 # API when the UI exits. Use dev-mock for a quick try without model download.
 .PHONY: dev
-dev: setup ## Run API (:8000) + UI dev server (:5173) together
+dev: setup frontend-setup ## Run API (:8000) + UI dev server (:5173) together
 	@echo "▶ API on  http://localhost:$(PORT)   |   UI on http://localhost:5173"
 	@trap 'kill 0' EXIT INT TERM; \
 	$(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT) & \
 	cd frontend && npm run dev
 
 .PHONY: dev-mock
-dev-mock: setup ## Same as `dev` but with the mock engine (no model download)
+dev-mock: setup frontend-setup ## Same as `dev` but with the mock engine (no model download)
 	@echo "▶ API (mock) on http://localhost:$(PORT)   |   UI on http://localhost:5173"
 	@trap 'kill 0' EXIT INT TERM; \
 	SAM_MOCK=true $(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT) & \
@@ -97,12 +97,12 @@ test: check-uv ## Run the test suite
 
 .PHONY: lint
 lint: check-uv ## Run ruff checks
-	$(UV) run ruff check sam3_studio tests
+	$(UV) run ruff check src tests
 
 .PHONY: fmt
 fmt: check-uv ## Auto-format with ruff
-	$(UV) run ruff check --fix sam3_studio tests
-	$(UV) run ruff format sam3_studio tests
+	$(UV) run ruff check --fix src tests
+	$(UV) run ruff format src tests
 
 .PHONY: check
 check: lint test ## Lint + tests

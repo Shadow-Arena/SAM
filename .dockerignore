@@ -14,7 +14,8 @@ build/
 dist/
 *.egg-info/
 
-# Node
+# Node (the frontend builds in its own context; never needed by the backend)
+frontend/
 frontend/node_modules/
 
 # Secrets / runtime artifacts

@@ -8,24 +8,24 @@ from pathlib import Path
 from PIL import Image
 
 from .domain import SegmentationResult
-from .rendering import overlay_masks
 
 SaveResultPaths = dict[str, str | list[str]]
 
 
 def save_result(image: Image.Image, result: SegmentationResult, output_dir: Path, run_id: str) -> SaveResultPaths:
-    """Persist composite, per-instance masks, semantic mask and JSON.
+    """Persist the already-rendered composite, per-instance masks, semantic
+    mask and JSON.
 
-    Returns a dict of file paths for the API/CLI.
+    The caller passes the final composite (rendered with the request opacity);
+    we never re-overlay it. Returns a dict of file paths for the API.
     """
     run_dir = Path(output_dir) / run_id
     masks_dir = run_dir / "masks"
     masks_dir.mkdir(parents=True, exist_ok=True)
     paths: SaveResultPaths = {}
 
-    composite = overlay_masks(image, result.instances, draw_boxes=True)
     composite_path = run_dir / "composite.png"
-    composite.save(composite_path)
+    image.save(composite_path)
     paths["composite"] = str(composite_path)
 
     if result.semantic_mask is not None:

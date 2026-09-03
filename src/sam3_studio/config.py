@@ -147,6 +147,11 @@ class SamSettings(BaseSettings):
     def effective_tracker_model_id(self) -> str:
         return self.tracker_model_id or self.model_id
 
+    @property
+    def cors_origin_list(self) -> list[str]:
+        """Parse the comma-separated ``cors_origins`` into a clean list."""
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
     def apply_hf_environment(self) -> None:
         """Set up Hugging Face access from the single login variable.
 

@@ -16,6 +16,18 @@ def test_defaults():
     assert s.lazy_load is False  # model loads once at startup by default
 
 
+def test_cors_origin_list_parses_cleanly():
+    s = SamSettings(_env_file=None)
+    assert s.cors_origin_list == [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:7860",
+        "http://127.0.0.1:7860",
+    ]
+    s2 = SamSettings(cors_origins="http://a.test, http://b.test,", _env_file=None)
+    assert s2.cors_origin_list == ["http://a.test", "http://b.test"]
+
+
 def test_tracker_fallback():
     s = SamSettings(tracker_model_id="facebook/sam3-large", _env_file=None)
     assert s.effective_tracker_model_id == "facebook/sam3-large"
