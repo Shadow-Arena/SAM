@@ -3,12 +3,12 @@
 Interactive **image segmentation** app powered by Meta's **SAM3** (Segment Anything Model 3) through 🤗 Transformers.
 Segment images using **text**, **boxes**, **points**, or a **mixed combination** — draw on the image in the browser and hit *Run*.
 
-- **FastAPI** backend (`app/api.py`) with a single-file HTML/JS frontend.
+- **FastAPI** backend (`src/sam3_studio/api`) with a single-file HTML/JS frontend.
 - **Text** — `"yellow school bus"`, `"ear"`, `"person"` → all matching instances (SAM3 Promptable Concept Segmentation).
 - **Box** — one or more positive/negative boxes.
 - **Point** — positive/negative clicks (SAM3 Tracker / Promptable Visual Segmentation).
 - **Mixed** — text + boxes + points together; results merged and deduplicated.
-- Pydantic config (`.env`), `Makefile` with `help`, plus a CLI for batch/scripted use.
+- Pydantic config (`.env`) and `Makefile` with `help`.
 
 ---
 
@@ -73,22 +73,6 @@ Multipart fields: `image`, `mode`, `text`, `points_positive`, `points_negative`,
 `max_masks`, `opacity`, `show_semantic`.
 The response contains `composite` and per-instance `mask` PNG data URIs plus `files` URLs.
 
-### CLI (one-shot, no server)
-
-```bash
-# text
-make segment ARGS="--image photos/street.jpg --text 'yellow school bus'"
-
-# points (positive/negative)
-make segment ARGS="--image img.jpg --point 320,240 --point 500,400 --negative-point 100,100"
-
-# boxes
-make segment ARGS="--image img.jpg --box 100,150,500,450"
-
-# mixed
-make segment ARGS="--image img.jpg --text handle --negative-box 40,183,318,204 --mode mixed"
-```
-
 ## Hugging Face login (required for gated private checkpoints)
 
 Some SAM3 checkpoints are gated — first authorize your account on
@@ -117,7 +101,6 @@ make run-dev     # FastAPI with uvicorn auto-reload (development)
 make run-mock    # start without downloading the model (mock engine)
 make setup       # uv sync — .venv + deps from uv.lock (auto-run by make run)
 make env         # copy .env.example -> .env
-make segment     # one-shot CLI:  make segment ARGS="--image a.jpg --text car"
 make config      # print effective configuration
 make login       # log in to Hugging Face (make login TOKEN=hf_xxx)
 make login-status# check the Hugging Face login
@@ -136,7 +119,7 @@ reproducible installs. `make run` is the only command you need.
 
 ## Configuration (pydantic + `.env`)
 
-Settings live in [`app/config.py`](app/config.py) (`SamSettings`, `pydantic-settings`).
+Settings live in [`src/sam3_studio/config.py`](src/sam3_studio/config.py) (`SamSettings`, `pydantic-settings`).
 Copy `.env.example` → `.env` (`make env`) and override anything with the `SAM_` prefix.
 
 | Variable                  | Default          | Meaning                                 |
@@ -164,7 +147,6 @@ Verify with `make config`.
 src/sam3_studio/
   __init__.py        # package exports
   main.py            # server entry point (uvicorn)
-  cli.py             # one-shot CLI (python -m sam3_studio.cli)
   config.py          # pydantic-settings + .env
   domain.py          # PromptSet / MaskInstance / SegmentationResult
   prompts.py         # point clustering, negative-point→box helpers
@@ -182,7 +164,7 @@ src/sam3_studio/
     schemas.py       #   pydantic response models
     routes/          #   /segment, /, /health, /config
   static/index.html  # web UI (vanilla HTML/CSS/JS)
-tests/               # pytest suite (unit/ + api/ + cli/ + entry/)
+tests/               # pytest suite (unit/ + api/ + entry/)
 Makefile             # setup/run/test/lint/help (uses uv; `make login` authenticates with HF)
 uv.lock              # reproducible dependency lockfile
 .env.example         # documented configuration template

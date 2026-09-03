@@ -21,12 +21,10 @@ dependencies = [
     "pydantic-settings>=2.2",
     "numpy>=1.24",
     "pillow>=10.0",
-    "requests>=2.31",
 ]
 
 [project.scripts]
 sam3-app = "sam3_studio.main:main"
-sam3-segment = "sam3_studio.cli:main"
 
 [dependency-groups]
 dev = [

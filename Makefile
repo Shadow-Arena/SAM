@@ -68,10 +68,6 @@ run-dev: setup ## Launch FastAPI with uvicorn auto-reload (development)
 run-mock: setup ## Launch the app WITHOUT downloading the model (synthetic mock engine)
 	SAM_MOCK=true $(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT)
 
-.PHONY: segment
-segment: setup ## One-shot CLI segmentation: make segment ARGS="--image a.jpg --text car"
-	$(PYTHON) -m sam3_studio.cli $(ARGS)
-
 .PHONY: config
 config: setup ## Print the effective configuration (values from .env / env vars)
 	$(PYTHON) -m sam3_studio.main --config
@@ -118,5 +114,4 @@ preload: check-uv ## Download & cache the SAM3 model to ~/.cache/huggingface
 	@echo ""
 	@echo "Next steps:"
 	@echo "  make run          # FastAPI app on http://localhost:$(PORT)"
-	@echo "  make segment ARGS=\"--image photo.jpg --text car\""
 	@echo "  make test / lint # quality checks"
