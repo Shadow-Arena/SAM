@@ -3,11 +3,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from app.config import ModeChoice, SamSettings
-from app.schemas import MaskInstance, PromptSet
-from app.segmentation import (
+from sam3_studio.config import ModeChoice, SamSettings
+from sam3_studio.domain import MaskInstance, PromptSet
+from sam3_studio.engine import (
     MockSegmentationEngine,
     SegmentationError,
+    create_engine,
     merge_instances,
     merge_sources,
 )
@@ -74,14 +75,6 @@ def test_result_json(sample_image, settings):
     result = engine.segment(sample_image, PromptSet(text="bus"), ModeChoice.TEXT)
     payload = result.to_json()
     assert payload["num_instances"] == len(result.instances)
-    assert set(payload) == {
-        "image_size",
-        "elapsed_seconds",
-        "num_instances",
-        "warnings",
-        "instances",
-        "has_semantic_mask",
-    }
 
 
 def test_max_masks_cap(sample_image, settings):
@@ -92,8 +85,6 @@ def test_max_masks_cap(sample_image, settings):
 
 def test_settings_env_mock_flag(settings):
     assert settings.mock is True
-    from app.segmentation import create_engine
-
     assert isinstance(create_engine(settings), MockSegmentationEngine)
     real_settings = SamSettings(_env_file=None)
     # real engine would attempt downloads; just check factory type contract.

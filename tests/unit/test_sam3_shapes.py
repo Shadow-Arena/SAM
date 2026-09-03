@@ -12,9 +12,9 @@ import pytest
 import torch
 from transformers import BatchEncoding
 
-from app.config import ModeChoice
-from app.schemas import PromptSet
-from app.segmentation import SegmentationEngine
+from sam3_studio.config import ModeChoice
+from sam3_studio.domain import PromptSet
+from sam3_studio.engine import SegmentationEngine
 
 
 def _fake_pcs_processor(batch_encoding, instance_shapes, semantic=None):

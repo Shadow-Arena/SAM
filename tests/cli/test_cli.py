@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from app import cli
+from sam3_studio import cli
 
 
 def test_cli_text_mode(sample_image, tmp_path, monkeypatch):

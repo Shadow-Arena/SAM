@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from app.schemas import MaskInstance, SegmentationResult
-from app.visualization import overlay_masks, overlay_semantic, save_result
+import numpy as np
+
+from sam3_studio.domain import MaskInstance, SegmentationResult
+from sam3_studio.export import save_result
+from sam3_studio.rendering import overlay_masks, overlay_semantic
 
 
 def test_overlay_masks(sample_image):
-    import numpy as np
-
     mask = np.zeros((200, 300), dtype=bool)
     mask[50:150, 100:220] = True
     inst = MaskInstance(mask=mask, score=0.87, box=(100, 50, 220, 150), source="text")
@@ -19,8 +20,6 @@ def test_overlay_masks(sample_image):
 
 
 def test_overlay_semantic(sample_image):
-    import numpy as np
-
     sem = np.zeros((200, 300), dtype=bool)
     sem[20:40, 20:40] = True
     out = overlay_semantic(sample_image, sem)
@@ -28,8 +27,6 @@ def test_overlay_semantic(sample_image):
 
 
 def test_save_result(sample_image, settings):
-    import numpy as np
-
     mask = np.zeros((200, 300), dtype=bool)
     mask[50:150, 100:220] = True
     result = SegmentationResult(

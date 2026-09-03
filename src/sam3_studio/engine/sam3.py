@@ -1,4 +1,4 @@
-"""SAM3 segmentation engine.
+"""SAM3 segmentation engine (real model).
 
 Wrapper around the 🤗 Transformers ``Sam3Model``/``Sam3Processor`` (Promptable
 Concept Segmentation: text + boxes) and ``Sam3TrackerModel``/
@@ -17,98 +17,17 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections.abc import Callable, Sequence
 
 import numpy as np
 from PIL import Image
 
-from .annotations import cluster_positive_points, negative_point_to_box
-from .config import (
-    ModeChoice,
-    SamSettings,
-    resolve_device,
-    resolve_torch_dtype,
-)
-from .schemas import MaskInstance, PromptSet, SegmentationResult
+from ..config import ModeChoice, SamSettings, resolve_device, resolve_torch_dtype
+from ..domain import MaskInstance, PromptSet, SegmentationResult
+from ..prompts import cluster_positive_points, negative_point_to_box
+from .common import ProgressCallback, merge_instances, report, validate_prompt
+from .errors import SegmentationError
 
 logger = logging.getLogger(__name__)
-
-ProgressCallback = Callable[[str], None] | None
-
-
-class SegmentationError(RuntimeError):
-    """Raised when a segmentation request cannot be executed."""
-
-
-def _report(callback: ProgressCallback, message: str) -> None:
-    logger.info(message)
-    if callback is not None:
-        try:
-            callback(message)
-        except Exception:  # pragma: no cover - UI callbacks must never break inference
-            pass
-
-
-def _bbox_iou(a: np.ndarray, b: np.ndarray) -> float:
-    inter = int(np.logical_and(a, b).sum())
-    union = int(np.logical_or(a, b).sum())
-    return inter / union if union else 0.0
-
-
-_SOURCE_ORDER = ["text", "box", "point"]
-
-
-def merge_sources(a: str, b: str) -> str:
-    """Combine source labels in canonical order, e.g. 'text' + 'point' -> 'text+point'."""
-    parts: list[str] = []
-    for part in [a, b]:
-        for token in part.split("+"):
-            if token and token not in parts:
-                parts.append(token)
-    parts.sort(key=lambda token: _SOURCE_ORDER.index(token) if token in _SOURCE_ORDER else len(_SOURCE_ORDER))
-    return "+".join(parts)
-
-
-def validate_prompt(mode: ModeChoice, prompt: PromptSet) -> None:
-    """Raise :class:`SegmentationError` for invalid prompt/mode combinations."""
-    if mode == ModeChoice.TEXT and not prompt.has_text and not prompt.has_boxes:
-        raise SegmentationError("Text mode needs a text prompt and/or box prompt.")
-    if mode == ModeChoice.BOX and not prompt.has_boxes:
-        raise SegmentationError("Box mode needs at least one box annotation.")
-    if mode == ModeChoice.POINT and not prompt.points_positive:
-        raise SegmentationError("Point mode needs at least one positive point annotation.")
-    if mode == ModeChoice.MIXED and not (prompt.has_text or prompt.has_boxes or prompt.points_positive):
-        raise SegmentationError("Mixed mode needs a text/box prompt and/or point prompt.")
-
-
-def merge_instances(instances: Sequence[MaskInstance], iou_threshold: float = 0.7) -> list[MaskInstance]:
-    """Deduplicate overlapping instances, keeping the highest score."""
-    ordered = sorted(
-        enumerate(instances),
-        key=lambda pair: pair[1].score if pair[1].score is not None else -1.0,
-        reverse=True,
-    )
-    kept: list[MaskInstance] = []
-    kept_by_index: dict[int, int] = {}  # original index -> slot in `kept`
-    for original_index, inst in ordered:
-        dup_slot: int | None = None
-        best_iou = 0.0
-        for slot, other in enumerate(kept):
-            iou = _bbox_iou(inst.mask, other.mask)
-            if iou > best_iou:
-                best_iou, dup_slot = iou, slot
-        if dup_slot is not None and best_iou > iou_threshold:
-            # Merge: record the combined source on the kept (higher-score) mask.
-            kept[dup_slot].source = merge_sources(kept[dup_slot].source, inst.source)
-            if inst.score is not None and (kept[dup_slot].score is None or inst.score > kept[dup_slot].score):
-                kept[dup_slot].score = inst.score
-            kept_by_index[original_index] = dup_slot
-        else:
-            kept.append(inst)
-            kept_by_index[original_index] = len(kept) - 1
-    for idx, inst in enumerate(kept):
-        inst.object_id = idx + 1
-    return kept
 
 
 class SegmentationEngine:
@@ -134,7 +53,7 @@ class SegmentationEngine:
             if self._pcs is not None:
                 return self._pcs
             try:
-                _report(progress, f"Loading SAM3 PCS model {self.settings.model_id} on {self.device} ...")
+                report(progress, f"Loading SAM3 PCS model {self.settings.model_id} on {self.device} ...")
                 from transformers import Sam3Model, Sam3Processor
 
                 kwargs = dict(
@@ -150,7 +69,7 @@ class SegmentationEngine:
                 )
                 self._pcs = (model, processor)
                 self.last_load_error = None
-                _report(progress, f"SAM3 PCS ready on {self.device}.")
+                report(progress, f"SAM3 PCS ready on {self.device}.")
                 return self._pcs
             except Exception as exc:  # noqa: BLE001
                 self.last_load_error = f"Failed to load SAM3 PCS model: {exc}"
@@ -164,7 +83,7 @@ class SegmentationEngine:
             if self._tracker is not None:
                 return self._tracker
             try:
-                _report(progress, f"Loading SAM3 tracker model {self.settings.effective_tracker_model_id} ...")
+                report(progress, f"Loading SAM3 tracker model {self.settings.effective_tracker_model_id} ...")
                 from transformers import Sam3TrackerModel, Sam3TrackerProcessor
 
                 kwargs = dict(
@@ -181,7 +100,7 @@ class SegmentationEngine:
                     self.settings.effective_tracker_model_id, local_files_only=self.settings.local_files_only
                 )
                 self._tracker = (model, processor)
-                _report(progress, "SAM3 tracker ready.")
+                report(progress, "SAM3 tracker ready.")
                 return self._tracker
             except Exception as exc:  # noqa: BLE001
                 self.last_load_error = f"Failed to load SAM3 tracker model: {exc}"
@@ -202,7 +121,7 @@ class SegmentationEngine:
         boxes: list[list[float]] | None = [list(b) for b in prompt.boxes_positive + prompt.boxes_negative] or None
         labels = [1] * len(prompt.boxes_positive) + [0] * len(prompt.boxes_negative) or None
         concept = "text" if prompt.has_text else "visual"
-        _report(
+        report(
             progress,
             f"Running SAM3 PCS ({concept} prompt, {len(boxes) if boxes else 0} box(es)) ...",
         )
@@ -294,7 +213,7 @@ class SegmentationEngine:
             labels_by_obj[idx].append(0)
         input_points = [[[p for p in pts] for pts in points_by_obj]]
         input_labels = [[list(lbl) for lbl in labels_by_obj]]
-        _report(
+        report(
             progress,
             f"Running SAM3 tracker for {len(clusters)} object(s) (points: {sum(len(p) for p in points_by_obj)}) ...",
         )
@@ -432,99 +351,3 @@ class SegmentationEngine:
             "Segmentation done: %d instance(s) in %.2fs (%s)", len(instances), result.elapsed_seconds, prompt.describe()
         )
         return result
-
-
-class MockSegmentationEngine:
-    """Deterministic fake engine used when ``SAM_MOCK=true``.
-
-    No model is downloaded; used for UI development and tests. It mimics the
-    :class:`SegmentationEngine` interface and returns synthetic masks.
-    """
-
-    device = "cpu"
-    torch_dtype = None
-    loaded = True
-    last_load_error = None
-
-    def __init__(self, settings: SamSettings | None = None):
-        self.settings = settings or SamSettings()
-        self.settings.apply_hf_environment()
-
-    def ensure_pcs(self, progress: ProgressCallback = None) -> tuple:
-        return (None, None)
-
-    def ensure_tracker(self, progress: ProgressCallback = None) -> tuple:
-        return (None, None)
-
-    def segment(
-        self,
-        image: Image.Image,
-        prompt: PromptSet,
-        mode: ModeChoice | str = ModeChoice.AUTO,
-        score_threshold: float | None = None,
-        mask_threshold: float | None = None,
-        max_masks: int | None = None,
-        progress: ProgressCallback = None,
-    ) -> SegmentationResult:
-        image = image.convert("RGB")
-        w, h = image.size
-        mode = ModeChoice(mode)
-        if mode == ModeChoice.AUTO:
-            mode = (
-                ModeChoice.TEXT
-                if (prompt.has_text or prompt.has_boxes)
-                else ModeChoice.POINT
-                if prompt.has_points
-                else ModeChoice.TEXT
-            )
-        validate_prompt(mode, prompt)
-        rng = np.random.default_rng(abs(hash(prompt.describe() + str(mode))) % (2**32))
-        count = 1 + (len(prompt.points_positive) if prompt.points_positive else 0) + int(bool(prompt.text))
-        count = min(max(count, 2), 5)
-        max_masks = self.settings.max_masks if max_masks is None else int(max_masks)
-        instances: list[MaskInstance] = []
-        for i in range(min(count, max_masks)):
-            cx, cy = rng.integers(int(0.15 * w), int(0.85 * w)), rng.integers(int(0.15 * h), int(0.85 * h))
-            rw, rh = int(rng.integers(int(0.08 * w), int(0.35 * w))), int(rng.integers(int(0.08 * h), int(0.35 * h)))
-            yy, xx = np.ogrid[:h, :w]
-            mask = ((xx - cx) / max(rw, 1)) ** 2 + ((yy - cy) / max(rh, 1)) ** 2 <= 1.0
-            ys, xs = np.nonzero(mask)
-            score = float(rng.random() * 0.4 + 0.5)
-            source = "point" if prompt.points_positive and not prompt.text else "text" if prompt.text else "box"
-            instances.append(
-                MaskInstance(
-                    mask=mask,
-                    score=score,
-                    box=(int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())),
-                    source=source,
-                    label=f"mock {i + 1}",
-                )
-            )
-        instances = merge_instances(instances, 0.9)[:max_masks]
-        return SegmentationResult(
-            instances=instances,
-            image_size=(h, w),
-            elapsed_seconds=0.01 * count,
-            warnings=list(prompt.warnings) + ["MOCK ENGINE — results are synthetic."],
-        )
-
-
-def create_engine(settings: SamSettings | None = None) -> SegmentationEngine | MockSegmentationEngine:
-    """Factory used across the app (CLI + UI)."""
-    settings = settings or SamSettings()
-    if settings.mock:
-        return MockSegmentationEngine(settings)
-    return SegmentationEngine(settings)
-
-
-_GLOBAL_ENGINE: SegmentationEngine | MockSegmentationEngine | None = None
-_GLOBAL_LOCK = threading.Lock()
-
-
-def get_engine(settings: SamSettings | None = None) -> SegmentationEngine | MockSegmentationEngine:
-    """Process-wide engine singleton (models are heavy)."""
-    global _GLOBAL_ENGINE
-    with _GLOBAL_LOCK:
-        if _GLOBAL_ENGINE is None:
-            _GLOBAL_ENGINE = create_engine(settings or SamSettings())
-        return _GLOBAL_ENGINE

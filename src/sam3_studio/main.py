@@ -1,7 +1,7 @@
 """Entry point: launch the FastAPI server.
 
 Usage:
-    python -m app.main [--host 0.0.0.0] [--port 7860] [--mock] [--lazy] [--reload]
+    python -m sam3_studio.main [--host 0.0.0.0] [--port 7860] [--mock] [--lazy] [--reload]
 """
 
 from __future__ import annotations
@@ -31,9 +31,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    settings = SamSettings()
+def _apply_overrides(settings: SamSettings, args: argparse.Namespace) -> SamSettings:
     updates: dict = {}
     if args.host is not None:
         updates["host"] = args.host
@@ -43,8 +41,12 @@ def main(argv: list[str] | None = None) -> int:
         updates["mock"] = args.mock
     if args.lazy_load is not None:
         updates["lazy_load"] = args.lazy_load
-    if updates:
-        settings = settings.model_copy(update=updates)
+    return settings.model_copy(update=updates) if updates else settings
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    settings = _apply_overrides(SamSettings(), args)
 
     logging.basicConfig(
         level=getattr(logging, settings.log_level), format="%(asctime)s %(levelname)s %(name)s: %(message)s"

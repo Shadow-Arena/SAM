@@ -6,7 +6,7 @@ module only keeps the pure helpers used when building tracker/PCS inputs.
 
 from __future__ import annotations
 
-from .schemas import XYXY, Point
+from .domain import XYXY, Point
 
 
 def cluster_positive_points(points: list[Point], max_distance: int) -> list[list[Point]]:

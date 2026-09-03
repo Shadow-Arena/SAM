@@ -158,23 +158,34 @@ Copy `.env.example` → `.env` (`make env`) and override anything with the `SAM_
 
 Verify with `make config`.
 
-## Project layout
+## Project layout (src/ package)
 
 ```
-app/
-  api.py           # FastAPI app (routes + startup preload)
-  static/index.html# web UI (vanilla HTML/CSS/JS)
-  config.py        # pydantic-settings + .env
-  schemas.py       # PromptSet / MaskInstance / SegmentationResult
-  annotations.py   # point clustering, negative-point→box helpers
-  segmentation.py  # SAM3 PCS + tracker engines, merging, lazy loading
-  visualization.py # overlay, result export (PNG + JSON)
-  main.py          # server entry point (python -m app.main)
-  cli.py           # one-shot CLI (python -m app.cli)
-Makefile           # setup/run/test/lint/help (uses uv; `make login` authenticates with HF)
-uv.lock            # reproducible dependency lockfile
-.env.example       # documented configuration template
-tests/             # pytest suite (incl. FastAPI TestClient)
+src/sam3_studio/
+  __init__.py        # package exports
+  main.py            # server entry point (uvicorn)
+  cli.py             # one-shot CLI (python -m sam3_studio.cli)
+  config.py          # pydantic-settings + .env
+  domain.py          # PromptSet / MaskInstance / SegmentationResult
+  prompts.py         # point clustering, negative-point→box helpers
+  rendering.py       # mask/semantic overlays
+  export.py          # result persistence (PNG + JSON)
+  engine/            # segmentation engines
+    errors.py        #   SegmentationError
+    common.py        #   prompt validation + instance merging
+    sam3.py          #   SAM3 PCS + tracker (real model)
+    mock.py          #   synthetic engine (no download)
+    factory.py       #   create_engine / get_engine singleton
+  api/               # FastAPI layer
+    app.py           #   create_app (routes + startup preload)
+    deps.py          #   form parsing / upload helpers
+    schemas.py       #   pydantic response models
+    routes/          #   /segment, /, /health, /config
+  static/index.html  # web UI (vanilla HTML/CSS/JS)
+tests/               # pytest suite (unit/ + api/ + cli/ + entry/)
+Makefile             # setup/run/test/lint/help (uses uv; `make login` authenticates with HF)
+uv.lock              # reproducible dependency lockfile
+.env.example         # documented configuration template
 ```
 
 ## Development

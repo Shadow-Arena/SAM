@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.main import parse_args
+from sam3_studio.main import parse_args
 
 
 def test_parse_args_defaults_keep_settings():

@@ -7,8 +7,8 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from app.api import create_app
-from app.segmentation import MockSegmentationEngine
+from sam3_studio.api import create_app
+from sam3_studio.engine import MockSegmentationEngine
 
 
 @pytest.fixture

@@ -12,7 +12,7 @@ Point = tuple[int, int]
 
 @dataclass
 class PromptSet:
-    """Normalized set of prompts derived from UI/CLI input."""
+    """Normalized set of prompts derived from client/CLI input."""
 
     text: str | None = None
     points_positive: list[Point] = field(default_factory=list)

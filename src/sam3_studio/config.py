@@ -92,11 +92,7 @@ class SamSettings(BaseSettings):
     max_masks: int = Field(default=100, ge=1, le=1000)
     mask_opacity: float = Field(default=0.55, description="Clamped to [0, 1].")
 
-    # ---------------------------------------------------------- annotations
-    point_max_size_px: int = Field(default=32, ge=4, description="Max bbox size (px) for a stroke to count as a point.")
-    point_max_size_relative: float = Field(
-        default=0.05, ge=0.005, le=0.5, description="Max bbox size (fraction of min image dim) for a point."
-    )
+    # ---------------------------------------------------------- prompt geometry
     cluster_distance_px: int = Field(
         default=48, ge=4, description="Positive points closer than this are grouped into one object."
     )
@@ -108,12 +104,8 @@ class SamSettings(BaseSettings):
             "Mixed mode: size of the negative box derived from a negative point, relative to image width/height."
         ),
     )
-    min_component_area: int = Field(default=6, ge=1, description="Ignore annotation strokes smaller than this (px).")
-    unknown_color_label: Literal["positive", "negative"] = Field(
-        default="positive", description="Sign used when a stroke color cannot be classified as green or red."
-    )
 
-    # ------------------------------------------------------------------- server
+    # ----------------------------------------------------------------- server
     host: str = "0.0.0.0"
     port: int = Field(default=7860, ge=1, le=65535)
 
@@ -202,7 +194,7 @@ def resolve_device(choice: DeviceChoice = DeviceChoice.AUTO) -> str:
             return "mps"
         if getattr(torch, "xpu", None) is not None and torch.xpu.is_available():
             return "xpu"
-    except Exception:
+    except Exception:  # noqa: BLE001
         pass
     return "cpu"
 

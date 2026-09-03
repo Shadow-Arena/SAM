@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from app.config import SamSettings
+from sam3_studio.config import SamSettings
 
 
 @pytest.fixture

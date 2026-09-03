@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.annotations import cluster_positive_points, negative_point_to_box
+from sam3_studio.prompts import cluster_positive_points, negative_point_to_box
 
 
 def test_cluster_positive_points():

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 
-from app.config import DeviceChoice, DTypeChoice, SamSettings, resolve_device, resolve_torch_dtype
+from sam3_studio.config import DeviceChoice, DTypeChoice, SamSettings, resolve_device, resolve_torch_dtype
 
 
 def test_defaults():
@@ -34,13 +34,6 @@ def test_thresholds_clamped():
     s = SamSettings(score_threshold=2.0, mask_threshold=-1.0, _env_file=None)
     assert s.score_threshold == 1.0
     assert s.mask_threshold == 0.0
-
-
-def test_no_gradio_settings():
-    """Gradio-specific settings are gone in the FastAPI version."""
-    s = SamSettings(_env_file=None)
-    for name in ("share", "gradio_auth", "gradio_root_path", "queue_concurrency", "max_file_size"):
-        assert not hasattr(s, name)
 
 
 def test_model_dump_masks_token():
@@ -119,6 +112,13 @@ def test_no_mirror_settings():
     s = SamSettings(_env_file=None)
     assert not hasattr(s, "hf_endpoint")
     assert not hasattr(s, "hf_login")
+
+
+def test_no_gradio_settings():
+    """Gradio-specific settings are gone in the FastAPI version."""
+    s = SamSettings(_env_file=None)
+    for name in ("share", "gradio_auth", "gradio_root_path", "queue_concurrency", "max_file_size"):
+        assert not hasattr(s, name)
 
 
 def test_resolve_device_types():

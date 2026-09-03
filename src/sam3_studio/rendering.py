@@ -1,16 +1,14 @@
-"""Rendering helpers: mask overlays, galleries and result persistence."""
+"""Rendering helpers: mask overlays and semantic overlays."""
 
 from __future__ import annotations
 
 import colorsys
-import json
 from collections.abc import Sequence
-from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from .schemas import MaskInstance, SegmentationResult
+from .domain import MaskInstance
 
 
 def colormap(index: int, total: int) -> tuple[int, int, int]:
@@ -23,7 +21,7 @@ def colormap(index: int, total: int) -> tuple[int, int, int]:
     return (int(r * 255), int(g * 255), int(b * 255))
 
 
-def _load_font(size: int) -> ImageFont.ImageFont:
+def _load_font(size: int) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
     for path in [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -100,38 +98,3 @@ def overlay_semantic(image: Image.Image, semantic_mask: np.ndarray, opacity: flo
     rgba[..., 0], rgba[..., 1] = 255, 200
     rgba[..., 3] = np.where(sem, int(255 * opacity), 0)
     return Image.alpha_composite(image, Image.fromarray(rgba, "RGBA")).convert("RGB")
-
-
-def save_result(image: Image.Image, result: SegmentationResult, output_dir: Path, run_id: str) -> dict[str, str]:
-    """Persist composite, per-instance masks, semantic mask and JSON.
-
-    Returns a dict of file paths for the UI.
-    """
-    run_dir = Path(output_dir) / run_id
-    masks_dir = run_dir / "masks"
-    masks_dir.mkdir(parents=True, exist_ok=True)
-    paths: dict[str, str] = {}
-
-    composite = overlay_masks(image, result.instances, draw_boxes=True)
-    composite_path = run_dir / "composite.png"
-    composite.save(composite_path)
-    paths["composite"] = str(composite_path)
-
-    if result.semantic_mask is not None:
-        sem_path = run_dir / "semantic.png"
-        Image.fromarray(result.semantic_mask.astype(np.uint8) * 255).save(sem_path)
-        paths["semantic"] = str(sem_path)
-
-    for inst in result.instances:
-        mask_img = Image.fromarray(inst.mask.astype(np.uint8) * 255)
-        path = masks_dir / f"mask_{inst.object_id:04d}.png"
-        mask_img.save(path)
-        paths.setdefault("masks", [])
-        paths["masks"].append(str(path))  # type: ignore[union-attr]
-
-    payload = result.to_json()
-    payload["files"] = paths
-    json_path = run_dir / "result.json"
-    json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    paths["json"] = str(json_path)
-    return paths

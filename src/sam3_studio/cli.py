@@ -1,10 +1,10 @@
 """One-shot segmentation from the command line.
 
 Examples:
-    python -m app.cli --image image.jpg --text "car"
-    python -m app.cli --image image.jpg --point 320 240 --point 500 400 --negative-point 100 100
-    python -m app.cli --image image.jpg --box 100 150 500 450
-    python -m app.cli --image image.jpg --text "handle" --negative-box 40 183 318 204 --mode mixed
+    python -m sam3_studio.cli --image image.jpg --text "car"
+    python -m sam3_studio.cli --image image.jpg --point 320 240 --point 500 400 --negative-point 100 100
+    python -m sam3_studio.cli --image image.jpg --box 100 150 500 450
+    python -m sam3_studio.cli --image image.jpg --text "handle" --negative-box 40 183 318 204 --mode mixed
 """
 
 from __future__ import annotations
@@ -16,9 +16,10 @@ from pathlib import Path
 from PIL import Image
 
 from .config import ModeChoice, SamSettings
-from .schemas import XYXY, PromptSet
-from .segmentation import SegmentationError, create_engine
-from .visualization import overlay_masks, save_result
+from .domain import XYXY, PromptSet
+from .engine import SegmentationError, create_engine
+from .export import save_result
+from .rendering import overlay_masks
 
 
 def _pair(value: str) -> tuple[int, int]:
@@ -67,6 +68,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def load_image(source: str) -> Image.Image:
+    """Load a local image file or fetch a URL."""
+    from io import BytesIO
     from urllib.parse import urlparse
 
     path = Path(source)
@@ -78,9 +81,11 @@ def load_image(source: str) -> Image.Image:
 
     resp = requests.get(source, timeout=60)
     resp.raise_for_status()
-    from io import BytesIO
-
     return Image.open(BytesIO(resp.content)).convert("RGB")
+
+
+def _is_path(source: str) -> bool:
+    return Path(source).exists()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -137,10 +142,6 @@ def main(argv: list[str] | None = None) -> int:
     if args.show:
         composite.show()
     return 0
-
-
-def _is_path(source: str) -> bool:
-    return Path(source).exists()
 
 
 if __name__ == "__main__":

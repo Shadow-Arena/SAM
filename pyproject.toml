@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sam3-segment-studio"
-version = "0.1.0"
+version = "0.2.0"
 description = "Interactive SAM3 image segmentation app — text, box, point or mixed prompts"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,8 +25,8 @@ dependencies = [
 ]
 
 [project.scripts]
-sam3-app = "app.main:main"
-sam3-segment = "app.cli:main"
+sam3-app = "sam3_studio.main:main"
+sam3-segment = "sam3_studio.cli:main"
 
 [dependency-groups]
 dev = [
@@ -41,7 +41,11 @@ package = true
 default-groups = ["dev"]
 
 [tool.setuptools.packages.find]
-include = ["app*"]
+where = ["src"]
+include = ["sam3_studio*"]
+
+[tool.setuptools.package-data]
+sam3_studio = ["static/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -51,7 +55,7 @@ filterwarnings = ["ignore::DeprecationWarning"]
 [tool.ruff]
 line-length = 120
 target-version = "py310"
-exclude = [".venv", "build", "dist", "outputs"]
+exclude = [".venv", "build", "dist", "outputs", "src/sam3_studio/static"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP", "B"]

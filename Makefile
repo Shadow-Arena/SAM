@@ -58,23 +58,23 @@ purge: clean ## Clean + remove .venv and outputs
 
 .PHONY: run
 run: setup ## Launch the FastAPI server (make run PORT=7861) [auto-installs deps]
-	$(PYTHON) -m app.main --host $(HOST) --port $(PORT)
+	$(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT)
 
 .PHONY: run-dev
 run-dev: setup ## Launch FastAPI with uvicorn auto-reload (development)
-	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --reload
+	$(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT) --reload
 
 .PHONY: run-mock
 run-mock: setup ## Launch the app WITHOUT downloading the model (synthetic mock engine)
-	SAM_MOCK=true $(PYTHON) -m app.main --host $(HOST) --port $(PORT)
+	SAM_MOCK=true $(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT)
 
 .PHONY: segment
 segment: setup ## One-shot CLI segmentation: make segment ARGS="--image a.jpg --text car"
-	$(PYTHON) -m app.cli $(ARGS)
+	$(PYTHON) -m sam3_studio.cli $(ARGS)
 
 .PHONY: config
 config: setup ## Print the effective configuration (values from .env / env vars)
-	$(PYTHON) -m app.main --config
+	$(PYTHON) -m sam3_studio.main --config
 
 # -------------------------------------------------------------- quality
 .PHONY: test
@@ -83,12 +83,12 @@ test: check-uv ## Run the test suite
 
 .PHONY: lint
 lint: check-uv ## Run ruff checks
-	$(UV) run ruff check app tests
+	$(UV) run ruff check sam3_studio tests
 
 .PHONY: fmt
 fmt: check-uv ## Auto-format with ruff
-	$(UV) run ruff check --fix app tests
-	$(UV) run ruff format app tests
+	$(UV) run ruff check --fix sam3_studio tests
+	$(UV) run ruff format sam3_studio tests
 
 .PHONY: check
 check: lint test ## Lint + tests
