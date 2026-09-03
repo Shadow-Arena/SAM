@@ -14,7 +14,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Literal
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -53,33 +53,6 @@ def _clamp01(value: float) -> float:
     return max(0.0, min(1.0, value))
 
 
-def parse_dotenv(path: Path | str) -> dict[str, str]:
-    """Small dependency-free parser for ``KEY=VALUE`` .env files.
-
-    Handles comments, ``export`` prefixes and single/double quotes.
-    """
-    result: dict[str, str] = {}
-    env_path = Path(path)
-    if not env_path.exists():
-        return result
-    for raw in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("export "):
-            line = line[len("export ") :].strip()
-        key, sep, value = line.partition("=")
-        if not sep:
-            continue
-        key = key.strip()
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-            value = value[1:-1]
-        if key:
-            result[key] = value
-    return result
-
-
 class SamSettings(BaseSettings):
     """Central application settings (pydantic).
 
@@ -95,7 +68,6 @@ class SamSettings(BaseSettings):
         env_prefix="SAM_",
         case_sensitive=False,
         extra="ignore",
-        populate_by_name=True,
     )
 
     # ------------------------------------------------------------------ model
@@ -154,36 +126,17 @@ class SamSettings(BaseSettings):
     output_dir: Path = Field(default=Path("outputs"), description="Where composite images / masks / JSON are saved.")
 
     # ------------------------------------------------------------- hf hub
-    # Both the namespaced form (SAM_HF_TOKEN / SAM_HF_ENDPOINT in .env) and the
-    # plain Hugging Face form (HF_TOKEN / HF_ENDPOINT) are accepted.
-    hf_endpoint: str | None = Field(
-        default=None,
-        validation_alias=AliasChoices("SAM_HF_ENDPOINT", "HF_ENDPOINT"),
-        description="HF endpoint override, e.g. https://hf-mirror.com.",
-    )
+    # ONE login variable: SAM_HF_TOKEN (from .env or the environment).
+    # When set, the app logs in automatically at startup and loads the model
+    # directly from huggingface.co (no mirror endpoints).
     hf_token: str | None = Field(
         default=None,
-        validation_alias=AliasChoices("SAM_HF_TOKEN", "HF_TOKEN"),
-        description="HF token for gated/private checkpoints (read from .env).",
+        description="The ONLY Hugging Face login variable: SAM_HF_TOKEN (needed for gated/private checkpoints).",
     )
-    hf_login: bool = Field(default=True, description="Call huggingface_hub.login() with the token at startup.")
 
     # ------------------------------------------------------------- misc
     mock: bool = Field(default=False, description="Use the mock engine (no model download). For UI/tests only.")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-
-    _dotenv_path: Path | None = None  # pydantic private attr (not a setting)
-
-    def __init__(self, **values):
-        # pydantic-settings does not expose the effective env_file afterwards,
-        # so capture it here (used to resolve .env token/endpoint).
-        env_file = values.get("_env_file")
-        if env_file is None:
-            configured = self.model_config.get("env_file")
-            env_file = configured[0] if isinstance(configured, (list, tuple)) and configured else configured
-        dotenv_path: Path | None = None if env_file is None else Path(env_file)
-        super().__init__(**values)
-        object.__setattr__(self, "_dotenv_path", dotenv_path)
 
     @field_validator("score_threshold", "mask_threshold", "iou_merge_threshold", "mask_opacity")
     @classmethod
@@ -201,61 +154,27 @@ class SamSettings(BaseSettings):
     def effective_tracker_model_id(self) -> str:
         return self.tracker_model_id or self.model_id
 
-    def effective_hf_token(self) -> str | None:
-        """Resolve the Hugging Face token.
-
-        Priority: ``SAM_HF_TOKEN`` in ``.env`` -> ``HF_TOKEN`` in ``.env`` ->
-        the environment / pydantic value. This guarantees a token stored in
-        ``.env`` is actually used even when the notebook already exports an
-        ``HF_TOKEN`` (e.g. Colab).
-        """
-        if not self._env_file_path:
-            return self.hf_token
-        dotenv = parse_dotenv(self._env_file_path)
-        return dotenv.get("SAM_HF_TOKEN") or dotenv.get("HF_TOKEN") or self.hf_token
-
-    def effective_hf_endpoint(self) -> str | None:
-        if not self._env_file_path:
-            return self.hf_endpoint
-        dotenv = parse_dotenv(self._env_file_path)
-        return dotenv.get("SAM_HF_ENDPOINT") or dotenv.get("HF_ENDPOINT") or self.hf_endpoint
-
-    @property
-    def _env_file_path(self) -> Path | None:
-        if self._dotenv_path is None:
-            return None
-        return self._dotenv_path if self._dotenv_path.is_absolute() else Path.cwd() / self._dotenv_path
-
     def apply_hf_environment(self) -> None:
-        """Configure Hugging Face access from settings.
+        """Set up Hugging Face access from the single login variable.
 
-        1. Exports ``HF_ENDPOINT`` / ``HF_TOKEN`` so transformers picks them up.
-        2. If a token is configured and ``hf_login`` is enabled, authenticates
-           via :func:`huggingface_hub.login` (same as ``login(SAM_HF_TOKEN)``).
-
-        The token is resolved from ``.env`` (``SAM_HF_TOKEN`` or ``HF_TOKEN``)
-        and exported as ``HF_TOKEN`` + ``HUGGINGFACEHUB_API_TOKEN``, overriding
-        any ambient value — so the login token from ``.env`` is always used.
+        1. Exports ``HF_TOKEN`` / ``HUGGINGFACEHUB_API_TOKEN`` from
+           ``SAM_HF_TOKEN`` so transformers uses the same token.
+        2. Calls :func:`huggingface_hub.login(token)` (the same as your notebook
+           ``login(SAM_HF_TOKEN)`` snippet).
 
         Failures never break startup: the token stays available through the
-        env vars, and the reason is logged. Use ``make login`` for interactive
-        login.
+        exported env vars and the reason is logged.
         """
-        endpoint = self.effective_hf_endpoint()
-        token = self.effective_hf_token()
-        if endpoint:
-            os.environ["HF_ENDPOINT"] = endpoint
+        token = self.hf_token
         if not token:
             return
         os.environ["HF_TOKEN"] = token
         os.environ["HUGGINGFACEHUB_API_TOKEN"] = token
-        if not self.hf_login:
-            return
         try:
             from huggingface_hub import login
 
             login(token=token, add_to_git_credential=False)
-            logger.info("Hugging Face login: authenticated with the token from .env.")
+            logger.info("Hugging Face login: authenticated with SAM_HF_TOKEN.")
         except Exception as exc:  # noqa: BLE001
             logger.warning("Hugging Face login failed (continuing with HF_TOKEN env var): %s", exc)
 
@@ -274,10 +193,10 @@ class SamSettings(BaseSettings):
 
     def describe_hf_auth(self) -> str:
         """Human-readable login status (never prints the token)."""
-        token = self.effective_hf_token()
+        token = self.hf_token
         if not token:
-            return "not configured (set SAM_HF_TOKEN or HF_TOKEN in .env)"
-        return f"configured from .env ({'***' + token[-4:] if len(token) > 4 else '***'})"
+            return "not configured (set SAM_HF_TOKEN in .env)"
+        return f"configured (***{token[-4:] if len(token) > 4 else '***'})"
 
 
 def resolve_device(choice: DeviceChoice = DeviceChoice.AUTO) -> str:

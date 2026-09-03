@@ -70,28 +70,20 @@ but the page is blank / no segmentation appears, check these **in order**:
 
 Some SAM3 checkpoints are gated — first authorize your account on
 [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), then
-log in **once** with any of these options:
+log in with **one single variable**:
 
 ```bash
-# 1) token in .env (recommended; auto-login on every app start)
 echo "SAM_HF_TOKEN=hf_xxx" >> .env      # .env is gitignored
-
-# 2) interactive login (saved in ~/.cache/huggingface/token)
-make login
-make login TOKEN=hf_xxx                 # non-interactive with a token
-
-# 3) exactly like your notebook snippet
-uv run python -c "from huggingface_hub import login; login('hf_xxx')"
 ```
 
-The token is read **from `.env`** (either `SAM_HF_TOKEN` or plain `HF_TOKEN`),
-exported as `HF_TOKEN` / `HUGGINGFACEHUB_API_TOKEN` (overriding any ambient
-shell/notebook value), and the app calls `huggingface_hub.login(token)` at
-startup automatically (configurable with `SAM_HF_LOGIN=true|false`):
+That's the only login variable. If it's set, the app automatically exports it as
+`HF_TOKEN` and calls `huggingface_hub.login(token)` at startup — same as your
+`login(SAM_HF_TOKEN)` snippet — and downloads directly from `huggingface.co`
+(no mirror).
 
 ```bash
 make login-status     # hf auth whoami
-make config           # shows token status: hf_auth = configured from .env (***xxxx)
+make config           # shows token status: hf_auth = configured (***xxxx)
 ```
 
 ## Makefile targets
@@ -186,9 +178,7 @@ Copy `.env.example` → `.env` (`make env`) and override anything with the `SAM_
 | `SAM_HOST` / `SAM_PORT`     | `0.0.0.0` / `7860`| UI bind address                                |
 | `SAM_SHARE`                 | `false`           | public gradio share link                       |
 | `SAM_OUTPUT_DIR`            | `outputs`         | where results are saved                        |
-| `SAM_HF_ENDPOINT`            | —                 | HF mirror, e.g. `https://hf-mirror.com`        |
-| `SAM_HF_TOKEN`              | —                 | token for gated/private checkpoints            |
-| `SAM_HF_LOGIN`               | `true`            | auto `huggingface_hub.login(SAM_HF_TOKEN)`     |
+| `SAM_HF_TOKEN`               | —                 | the ONLY Hugging Face login variable           |
 | `SAM_MOCK`                  | `false`           | synthetic engine (dev/tests, no download)      |
 
 Verify with `make config`.
@@ -231,5 +221,6 @@ make run-mock    # verify the UI without downloading weights
   the default), so the first text/box and the first point request are both
   instant. Set `SAM_LAZY_LOAD=true` (or `make run` + `--lazy`) if you want the
   server to open instantly and load only on the first request.
-- If `huggingface.co` is unreachable, set `SAM_HF_ENDPOINT=https://hf-mirror.com`
-  and/or preload with `make preload`.
+- Downloads come directly from `huggingface.co` (no mirror). If the download
+  fails, check your token with `make login-status` or preload once with
+  `make preload`.
