@@ -28,3 +28,6 @@ outputs/
 
 # Model cache
 .cache/
+
+# Node / frontend
+frontend/node_modules/

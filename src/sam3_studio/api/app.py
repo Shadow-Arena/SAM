@@ -23,6 +23,8 @@ def create_app(settings: SamSettings | None = None, engine: Engine | None = None
     engine = engine if engine is not None else get_engine(settings)
     output_dir = Path(settings.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    static_dir = Path(__file__).resolve().parent.parent / "static"
+    static_dir.mkdir(parents=True, exist_ok=True)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -46,6 +48,7 @@ def create_app(settings: SamSettings | None = None, engine: Engine | None = None
         lifespan=lifespan,
     )
     app.mount("/outputs", StaticFiles(directory=output_dir), name="outputs")
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
     app.state.settings = settings
     app.state.engine = engine
     app.state.output_dir = output_dir

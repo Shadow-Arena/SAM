@@ -103,6 +103,19 @@ login: check-uv ## Log in to Hugging Face: `make login` (interactive) or `make l
 login-status: check-uv ## Show the current Hugging Face login status
 	$(UV) run hf auth whoami
 
+# ------------------------------------------------------------------ frontend
+.PHONY: frontend-setup
+frontend-setup: ## Install frontend dependencies (npm ci in frontend/)
+	cd frontend && npm ci --no-audit --no-fund
+
+.PHONY: frontend-dev
+frontend-dev: frontend-setup ## Vite dev server (port 5173, proxies API to :7860)
+	cd frontend && npm run dev
+
+.PHONY: frontend-build
+frontend-build: frontend-setup ## Build the UI into src/sam3_studio/static
+	cd frontend && npm run build
+
 # ------------------------------------------------------------------ misc
 .PHONY: preload
 preload: check-uv ## Download & cache the SAM3 model to ~/.cache/huggingface

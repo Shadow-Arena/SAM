@@ -16,7 +16,7 @@ STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
 
 @router.get("/", include_in_schema=False)
 def index() -> FileResponse:
-    """Serve the single-file web UI."""
+    """Serve the built React UI (frontend/ → static/)."""
     return FileResponse(STATIC_DIR / "index.html", media_type="text/html")
 
 

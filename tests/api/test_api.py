@@ -27,7 +27,20 @@ def test_root_serves_ui(client):
     resp = client.get("/")
     assert resp.status_code == 200
     assert "SAM3 Segment Studio" in resp.text
-    assert "/segment" in resp.text
+    # The React bundle is built into static/ and referenced via /static/assets.
+    assert "/static/assets/" in resp.text
+
+
+def test_static_assets_are_served(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    import re
+
+    asset = re.search(r'href="(/static/assets/[^"]+\.css)"', resp.text)
+    assert asset, "expected a CSS asset link in the built index.html"
+    css = client.get(asset.group(1))
+    assert css.status_code == 200
+    assert "text/css" in css.headers["content-type"]
 
 
 def test_health(client, settings):
