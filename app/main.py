@@ -22,18 +22,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--no-share", dest="share", action="store_false", help="Disable public share link.")
     parser.add_argument("--mock", action="store_true", default=None, help="Run with the mock engine (no model).")
     parser.add_argument(
-        "--preload",
-        dest="lazy_load",
-        action="store_false",
-        default=None,
-        help="Preload the model at startup (this is also the default).",
-    )
-    parser.add_argument(
         "--lazy",
         dest="lazy_load",
         action="store_true",
         default=None,
-        help="Skip startup load; load the model on the first request.",
+        help="Skip the startup model load; load on the first request instead.",
     )
     parser.add_argument("--config", action="store_true", help="Print effective configuration and exit.")
     return parser.parse_args(argv)

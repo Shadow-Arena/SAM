@@ -200,9 +200,7 @@ def analyze_layers(
     return annotations, warnings
 
 
-def annotations_to_prompt_set(
-    annotations: Sequence[PromptAnnotation], settings: SamSettings, text: str | None = None
-) -> PromptSet:
+def annotations_to_prompt_set(annotations: Sequence[PromptAnnotation], text: str | None = None) -> PromptSet:
     """Group annotations into a :class:`PromptSet`."""
     prompt = PromptSet(text=(text or "").strip() or None)
     for ann in annotations:

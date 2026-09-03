@@ -3,14 +3,12 @@ from __future__ import annotations
 from app.main import parse_args
 
 
-def test_parse_args_empty_keeps_settings_default():
-    """Without flags, lazy_load must stay None so settings decide (default: preload)."""
+def test_parse_args_defaults_keep_settings():
+    """Without flags, lazy_load stays None so settings decide (default: preload at start)."""
     args = parse_args([])
     assert args.lazy_load is None
-
-
-def test_parse_args_preload_flag():
-    assert parse_args(["--preload"]).lazy_load is False
+    assert args.share is None
+    assert args.mock is None
 
 
 def test_parse_args_lazy_flag():

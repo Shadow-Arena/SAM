@@ -37,28 +37,18 @@ loads the model **once** and starts the app at http://0.0.0.0:7860.
 If the server starts (logs show `* Running on local URL: http://0.0.0.0:7860`)
 but the page is blank / no segmentation appears, check these **in order**:
 
-1. **Colab / Kaggle / remote VM** — `http://localhost:7860` points to *your* machine, not the notebook. Use:
-   ```bash
-   make run-share        # public https link like https://xxx.gradio.live — works anywhere
-   ```
-   or, inside the notebook:
-   ```python
-   from google.colab import output
-   output.serve_kernel_port_as_window(7860)
-   ```
+1. **Open the right URL** — use `http://localhost:7860` on the same machine
+   (or the machine's IP/domain if the server runs elsewhere). The port can be
+   changed with `make run PORT=7861`.
 
 2. **Enabled GPU?** Without one, SAM3 runs on CPU and a single request can take
-   **minutes** — the notebook proxy may time out (and the log shows
-   `WARNING: Invalid HTTP request received.`). In Colab choose
-   `Runtime → Change runtime type → T4 GPU`, then:
-   ```bash
-   echo "SAM_DEVICE=cuda" >> .env   # verify with: make config
-   ```
+   **minutes**. Use a small image and a single prompt for the first try, or
+   enable a GPU and set `SAM_DEVICE=cuda` in `.env` (verify with `make config`).
 
 3. **Model loads once at startup** (default): `make run` downloads/loads the
    weights before the UI opens — expect a long first start, then instant clicks:
    ```bash
-   make run        # "Loading SAM3 model (once) at startup ..." -> "SAM3 ready on cpu."
+   make run        # "Loading SAM3 model(s) once at startup ..." -> "SAM3 ready on cpu."
    make preload    # optional: download weights once, before launching
    ```
 
@@ -92,32 +82,26 @@ make config           # shows token status: hf_auth = configured (***xxxx)
 
 ```bash
 make help        # show all targets (default)
+make run         # install deps + load SAM3 once + start the UI  (PORT=7861 overrides)
 make setup       # uv sync — .venv + deps from uv.lock (also auto-run by make run)
-make lock        # regenerate uv.lock
-make update      # upgrade dependencies and refresh uv.lock
 make env         # copy .env.example -> .env
-make run         # start the app — model loads ONCE at startup   (PORT=7861 overrides)
-make run-share   # public gradio.live link — Colab/Kaggle/remote
-make run-preload # same as make run (explicit preload at startup)
-make run-mock    # start the app using the synthetic mock engine
 make segment     # one-shot CLI:  make segment ARGS="--image a.jpg --text car"
 make config      # print effective configuration
+make login       # log in to Hugging Face (make login TOKEN=hf_xxx)
+make login-status# check the Hugging Face login
 make test        # uv run pytest
 make lint        # uv run ruff
 make fmt         # uv run ruff (fix + format)
 make check       # lint + tests
 make preload     # download & cache the model ahead of time
+make lock        # regenerate uv.lock
+make update      # upgrade dependencies and refresh uv.lock
+make run-mock    # start the app using the synthetic mock engine
 make clean purge # cleanup
 ```
 
 Everything runs through `uv` (`uv sync`, `uv run`, `uv lock`), and `uv.lock` is committed for
-reproducible installs. You can also invoke it directly:
-
-```bash
-uv run python -m app.main --port 7860
-uv run python -m app.cli --image photo.jpg --text car
-uv run pytest
-```
+reproducible installs. `make run` is the only command you need for the UI.
 
 ## Usage
 
@@ -155,9 +139,6 @@ make segment ARGS="--image img.jpg --box 100,150,500,450"
 
 # mixed
 make segment ARGS="--image img.jpg --text handle --negative-box 40,183,318,204 --mode mixed"
-
-# raw python
-uv run python -m app.cli --image img.jpg --text car --score-threshold 0.4
 ```
 
 ## Configuration (pydantic + `.env`)
@@ -214,11 +195,11 @@ make run-mock    # verify the UI without downloading weights
 ## Notes
 
 - Both `Sam3Model` (text/boxes) and `Sam3TrackerModel` (points) are loaded from the
-  same `facebook/sam3` checkpoint; tracker weights are fetched lazily on first point use.
-- **CPU works fine for trying it out** — expect roughly 30–120 s per image on a
-  typical Colab CPU and ~6 GB RAM. Use a small image and one prompt for the first
-  try. For real work, use a GPU (`Runtime → Change runtime type → T4`, then
-  `echo "SAM_DEVICE=cuda" >> .env`).
+  same `facebook/sam3` checkpoint and loaded **once at startup** — the first
+  text/box and the first point request are both instant.
+- **CPU works fine for trying it out** — expect roughly 30–120 s per image and
+  ~6 GB RAM. Use a small image and one prompt for the first try. For real work,
+  use a GPU (`SAM_DEVICE=cuda` in `.env`).
 - Both models (PCS + tracker) load **once at startup** (`SAM_LAZY_LOAD=false` is
   the default), so the first text/box and the first point request are both
   instant. Set `SAM_LAZY_LOAD=true` (or `make run` + `--lazy`) if you want the

@@ -58,7 +58,7 @@ def test_analyze_layers_point_and_box(settings):
 def test_prompt_set_from_annotations(settings):
     layer = _layer_with_strokes([((40, 40), (10, 10), POSITIVE_COLOR), ((260, 150), (36, 30), NEGATIVE_COLOR)])
     annotations, _ = analyze_layers([layer], (200, 300), settings)
-    prompt = annotations_to_prompt_set(annotations, settings, text="cat")
+    prompt = annotations_to_prompt_set(annotations, text="cat")
     assert prompt.text == "cat"
     assert len(prompt.points_positive) == 1
     assert len(prompt.boxes_negative) == 1

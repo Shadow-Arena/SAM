@@ -187,15 +187,6 @@ class SegmentationEngine:
                 self.last_load_error = f"Failed to load SAM3 tracker model: {exc}"
                 raise SegmentationError(self.last_load_error) from exc
 
-    @property
-    def loaded(self) -> bool:
-        return self._pcs is not None or self._tracker is not None
-
-    def unload(self) -> None:
-        with self._lock:
-            del self._pcs, self._tracker
-            self._pcs = self._tracker = None
-
     # ------------------------------------------------------------------ inference
     def _run_pcs(
         self,
@@ -464,9 +455,6 @@ class MockSegmentationEngine:
 
     def ensure_tracker(self, progress: ProgressCallback = None) -> tuple:
         return (None, None)
-
-    def unload(self) -> None:
-        return None
 
     def segment(
         self,

@@ -159,8 +159,7 @@ class SamSettings(BaseSettings):
 
         1. Exports ``HF_TOKEN`` / ``HUGGINGFACEHUB_API_TOKEN`` from
            ``SAM_HF_TOKEN`` so transformers uses the same token.
-        2. Calls :func:`huggingface_hub.login(token)` (the same as your notebook
-           ``login(SAM_HF_TOKEN)`` snippet).
+        2. Calls :func:`huggingface_hub.login(token)`.
 
         Failures never break startup: the token stays available through the
         exported env vars and the reason is logged.

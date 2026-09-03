@@ -69,7 +69,7 @@ def make_segment_handler(settings: SamSettings, engine_factory: Callable | None 
                 if background is None:
                     return None, None, [], [], "⚠️ Upload an image first."
                 annotations, layer_warnings = analyze_layers(layers, background.size, settings)
-                prompt_set = annotations_to_prompt_set(annotations, settings, text=text)
+                prompt_set = annotations_to_prompt_set(annotations, text=text)
                 if not prompt_set:
                     return None, None, [], [], "⚠️ Provide a prompt: draw points/boxes or type text."
                 progress(0.05, desc="Running segmentation…")

@@ -22,10 +22,6 @@ class PromptAnnotation:
     color: tuple[int, int, int] = (0, 0, 0)
     area: int = 0
 
-    @property
-    def is_negative(self) -> bool:
-        return not self.positive
-
 
 @dataclass
 class PromptSet:

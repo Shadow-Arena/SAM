@@ -56,8 +56,6 @@ purge: clean ## Clean + remove .venv and outputs
 	rm -rf .venv outputs
 	@echo "Removed .venv/ and outputs/. Re-run 'make setup'."
 
-# ------------------------------------------------------------------ run
-# Running always ensures deps are installed first (`uv sync` is incremental).
 .PHONY: run
 run: setup ## Launch the interactive Gradio app (make run PORT=7861) [auto-installs deps]
 	$(PYTHON) -m app.main --host $(HOST) --port $(PORT)
@@ -65,14 +63,6 @@ run: setup ## Launch the interactive Gradio app (make run PORT=7861) [auto-insta
 .PHONY: run-mock
 run-mock: setup ## Launch the app WITHOUT downloading the model (synthetic mock engine)
 	SAM_MOCK=true $(PYTHON) -m app.main --host $(HOST) --port $(PORT)
-
-.PHONY: run-share
-run-share: setup ## Launch the app with a public gradio.live link (Colab/Kaggle/remote)
-	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --share
-
-.PHONY: run-preload
-run-preload: setup ## Load the model at startup (same as default `make run`; explicit)
-	$(PYTHON) -m app.main --host $(HOST) --port $(PORT) --preload
 
 .PHONY: segment
 segment: setup ## One-shot CLI segmentation: make segment ARGS="--image a.jpg --text car"
