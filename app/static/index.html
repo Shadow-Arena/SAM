@@ -3,315 +3,871 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>SAM3 Segment Studio</title>
 <style>
   :root {
-    --bg: #0f1420; --panel: #171e2e; --panel2: #1e2740; --border: #2b3650;
-    --text: #e6ecf7; --muted: #93a1bb; --accent: #4f8cff; --ok: #32cc70; --bad: #ff5c5c;
+    --bg: #0b0e14;
+    --bg-soft: #10141d;
+    --panel: #141926;
+    --panel-2: #1a2133;
+    --panel-3: #202941;
+    --border: #232c42;
+    --border-soft: #1c2438;
+    --text: #e8edf7;
+    --text-dim: #9aa7c2;
+    --text-faint: #6b7893;
+    --accent: #4f8cff;
+    --accent-2: #7c5cff;
+    --accent-soft: rgba(79, 140, 255, .14);
+    --ok: #34d399;
+    --ok-soft: rgba(52, 211, 153, .14);
+    --bad: #f87171;
+    --bad-soft: rgba(248, 113, 113, .14);
+    --warn: #fbbf24;
+    --radius: 14px;
+    --radius-sm: 9px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-    font: 14px/1.5 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif; }
-  header { padding: 18px 24px 10px; }
-  header h1 { margin: 0; font-size: 22px; }
-  header p { margin: 4px 0 0; color: var(--muted); }
-  #health { float: right; font-size: 12px; color: var(--muted); border: 1px solid var(--border);
-    border-radius: 8px; padding: 6px 10px; }
-  main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr); gap: 18px;
-    padding: 0 24px 24px; }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
-  h2 { margin: 0 0 12px; font-size: 15px; }
-  label { display: block; margin: 10px 0 4px; color: var(--muted); font-size: 12px; }
-  input[type=text], select { width: 100%; background: var(--panel2); color: var(--text);
-    border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; font: inherit; }
-  input[type=range] { width: 100%; accent-color: var(--accent); }
-  input[type=file] { width: 100%; padding: 8px; color: var(--muted); }
-  button { cursor: pointer; border: 1px solid var(--border); background: var(--panel2); color: var(--text);
-    border-radius: 8px; padding: 9px 12px; font: inherit; }
-  button:hover { border-color: var(--accent); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; width: 100%; margin-top: 12px; }
-  button.primary:disabled { opacity: .5; cursor: wait; }
-  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
-  .toolbar button.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  #canvas-wrap { position: relative; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
-    background: #0a0e17; min-height: 320px; }
-  #canvas { display: block; width: 100%; touch-action: none; }
-  #drop-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 60px 20px; text-align: center;
-    color: var(--muted); cursor: pointer; }
-  #drop-zone:hover { border-color: var(--accent); }
-  #status { min-height: 22px; margin-top: 10px; font-size: 13px; }
-  #status.err { color: var(--bad); }
-  .hint { color: var(--muted); font-size: 12px; }
-  #result-img { max-width: 100%; border-radius: 10px; border: 1px solid var(--border); }
-  #instances { width: 100%; border-collapse: collapse; font-size: 12px; }
-  #instances th, #instances td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
-  #masks { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
-  #masks figure { margin: 0; }
-  #masks img { width: 100%; border-radius: 6px; border: 1px solid var(--border); }
-  #masks figcaption { font-size: 11px; color: var(--muted); margin-top: 4px; }
-  #downloads a { display: inline-block; margin: 4px 10px 0 0; color: var(--accent); }
-  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none; align-items: center;
-    justify-content: center; z-index: 10; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(1100px 500px at 85% -10%, rgba(79, 140, 255, .10), transparent 60%),
+      radial-gradient(900px 420px at -10% 110%, rgba(124, 92, 255, .08), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font: 14px/1.55 var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; }
+  input, select { font: inherit; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ---------------------------------------------------------------- layout */
+  .shell { max-width: 1440px; margin: 0 auto; padding: 20px 24px 48px; }
+  header {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 4px 2px 18px;
+  }
+  .logo {
+    width: 40px; height: 40px; border-radius: 11px; flex: none;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 6px 18px rgba(79, 140, 255, .35);
+    color: #fff; font-size: 20px;
+  }
+  .brand h1 { font-size: 18px; font-weight: 700; letter-spacing: .2px; }
+  .brand p { color: var(--text-dim); font-size: 12.5px; margin-top: 1px; }
+  header .spacer { flex: 1; }
+  .health {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border: 1px solid var(--border); border-radius: 999px;
+    background: var(--panel); color: var(--text-dim); font-size: 12px;
+  }
+  .health .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .health.bad .dot { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+  .health.mock .dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+
+  .layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 20px; align-items: start; }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card + .card { margin-top: 20px; }
+  .card-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px; border-bottom: 1px solid var(--border-soft);
+    background: linear-gradient(180deg, rgba(255, 255, 255, .02), transparent);
+  }
+  .card-head h2 { font-size: 13.5px; font-weight: 600; letter-spacing: .3px; color: var(--text); }
+  .card-head .icon { opacity: .8; font-size: 15px; }
+  .card-head .spacer { flex: 1; }
+  .card-body { padding: 18px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; color: var(--text-dim); background: var(--panel-2);
+    border: 1px solid var(--border-soft); border-radius: 999px; padding: 3px 9px;
+  }
+
+  /* ---------------------------------------------------------------- upload */
+  .dropzone {
+    position: relative; border: 1.5px dashed var(--border); border-radius: var(--radius);
+    padding: 34px 18px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s;
+    background: var(--bg-soft);
+  }
+  .dropzone:hover, .dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
+  .dropzone .dz-icon {
+    width: 46px; height: 46px; margin: 0 auto 12px; border-radius: 12px;
+    display: grid; place-items: center; font-size: 22px;
+    background: var(--panel-2); border: 1px solid var(--border);
+  }
+  .dropzone .dz-title { font-weight: 600; font-size: 13.5px; }
+  .dropzone .dz-sub { color: var(--text-faint); font-size: 12px; margin-top: 4px; }
+  .dropzone .dz-btn {
+    display: inline-block; margin-top: 14px; padding: 8px 16px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 1px solid rgba(79, 140, 255, .35); border-radius: 8px;
+    font-weight: 600; font-size: 12.5px;
+  }
+  .dropzone:hover .dz-btn { background: rgba(79, 140, 255, .22); }
+  .dropzone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+  .imagebar { display: flex; align-items: center; gap: 10px; }
+  .imagebar .thumb {
+    width: 54px; height: 54px; border-radius: 10px; object-fit: cover;
+    border: 1px solid var(--border); background: var(--bg-soft);
+  }
+  .imagebar .meta { min-width: 0; }
+  .imagebar .meta .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .imagebar .meta .dims { color: var(--text-faint); font-size: 12px; margin-top: 1px; }
+  .imagebar .change { margin-left: auto; flex: none; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 9px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+    font-weight: 600; font-size: 12.5px; cursor: pointer;
+    transition: background .12s, border-color .12s, transform .05s;
+  }
+  .btn:hover { background: var(--panel-3); border-color: #2e3a58; }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent), #3f6fd9);
+    border-color: transparent; color: #fff;
+    box-shadow: 0 6px 18px rgba(79, 140, 255, .3);
+  }
+  .btn.primary:hover { filter: brightness(1.08); background: linear-gradient(135deg, var(--accent), #3f6fd9); }
+  .btn.ghost { background: transparent; }
+  .btn.small { padding: 6px 10px; font-size: 12px; }
+  .btn.wide { width: 100%; padding: 12px; font-size: 14px; }
+  .btn .spin {
+    width: 14px; height: 14px; border-radius: 50%; flex: none;
+    border: 2px solid rgba(255, 255, 255, .35); border-top-color: #fff;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------------------------------------------------------------- tools */
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .field > label, .field-label {
+    display: block; font-size: 11.5px; font-weight: 600; letter-spacing: .4px;
+    text-transform: uppercase; color: var(--text-faint); margin-bottom: 7px;
+  }
+  .field input[type="text"], .field select {
+    width: 100%; background: var(--bg-soft); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    padding: 10px 12px; outline: none; transition: border-color .12s, box-shadow .12s;
+  }
+  .field input[type="text"]:focus, .field select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .field select { cursor: pointer; }
+  .field input[type="text"]::placeholder { color: var(--text-faint); }
+
+  .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tool {
+    display: flex; align-items: center; gap: 9px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg-soft); color: var(--text-dim); cursor: pointer;
+    font-weight: 600; font-size: 12.5px; transition: all .12s; text-align: left;
+  }
+  .tool:hover { border-color: #2e3a58; color: var(--text); }
+  .tool .swatch {
+    width: 12px; height: 12px; border-radius: 50%; flex: none; border: 2px solid transparent;
+  }
+  .tool.t-pp .swatch { background: var(--ok); }
+  .tool.t-pn .swatch { background: var(--bad); }
+  .tool.t-bp .swatch { background: var(--ok); border-radius: 3px; }
+  .tool.t-bn .swatch { background: var(--bad); border-radius: 3px; }
+  .tool.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .tool .kbd { margin-left: auto; font-size: 10px; color: var(--text-faint); background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: 5px; padding: 1px 6px; }
+
+  .prompt-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px;
+    color: var(--text-dim); background: var(--bg-soft);
+    border: 1px solid var(--border-soft); border-radius: 999px; padding: 4px 10px;
+  }
+  .chip .c { width: 7px; height: 7px; border-radius: 50%; }
+  .chip .c.g { background: var(--ok); } .chip .c.r { background: var(--bad); }
+
+  details.adv { border: 1px solid var(--border-soft); border-radius: var(--radius-sm); background: var(--bg-soft); }
+  details.adv summary {
+    cursor: pointer; padding: 11px 14px; font-size: 12.5px; font-weight: 600; color: var(--text-dim);
+    list-style: none; display: flex; align-items: center; gap: 8px; user-select: none;
+  }
+  details.adv summary::before { content: "▸"; color: var(--text-faint); transition: transform .15s; }
+  details.adv[open] summary::before { transform: rotate(90deg); }
+  details.adv .inner { padding: 2px 14px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+  .slider label { display: block; font-size: 11.5px; color: var(--text-dim); margin-bottom: 6px; }
+  .slider .val { float: right; color: var(--accent); font-weight: 600; }
+  .slider input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .check { display: flex; align-items: center; gap: 9px; color: var(--text-dim); font-size: 12.5px; cursor: pointer; }
+  .check input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+  /* ---------------------------------------------------------------- editor */
+  .stage { position: relative; padding: 18px; }
+  .canvas-shell {
+    position: relative; width: 100%; min-height: 320px;
+    display: grid; place-items: center;
+    background:
+      linear-gradient(45deg, rgba(255,255,255,.025) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.025) 75%),
+      linear-gradient(45deg, rgba(255,255,255,.025) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.025) 75%),
+      var(--bg);
+    background-size: 22px 22px; background-position: 0 0, 11px 11px;
+    border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
+    overflow: auto;
+  }
+  .canvas-shell.drop-hint { border-color: var(--accent); }
+  #canvas { display: block; cursor: crosshair; border-radius: 4px; box-shadow: 0 14px 40px rgba(0,0,0,.5); touch-action: none; }
+  .empty-state { color: var(--text-faint); text-align: center; padding: 70px 20px; }
+  .empty-state .big { font-size: 42px; margin-bottom: 10px; opacity: .55; }
+  .empty-state p { font-size: 13px; }
+  .stage-foot {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 10px 18px 16px; color: var(--text-faint); font-size: 12px;
+  }
+  .stage-foot .spacer { flex: 1; }
+  .stage-foot kbd {
+    background: var(--panel-2); border: 1px solid var(--border-soft); border-bottom-width: 2px;
+    border-radius: 5px; padding: 1px 6px; font-size: 10.5px; font-family: inherit; color: var(--text-dim);
+  }
+
+  /* ---------------------------------------------------------------- status */
+  .status {
+    display: none; align-items: flex-start; gap: 10px; margin: 0 18px 16px;
+    padding: 11px 14px; border-radius: var(--radius-sm); font-size: 12.5px;
+    border: 1px solid var(--border-soft); background: var(--bg-soft);
+  }
+  .status.show { display: flex; }
+  .status.info { border-color: rgba(79,140,255,.35); background: var(--accent-soft); color: #cfe0ff; }
+  .status.ok { border-color: rgba(52,211,153,.35); background: var(--ok-soft); color: #c6f5e2; }
+  .status.err { border-color: rgba(248,113,113,.35); background: var(--bad-soft); color: #ffd4d4; }
+  .status .ico { flex: none; font-size: 15px; line-height: 1.3; }
+
+  /* ---------------------------------------------------------------- results */
+  .compare { display: flex; gap: 6px; background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: 10px; padding: 4px; }
+  .compare button {
+    border: 0; background: transparent; color: var(--text-dim); font-weight: 600; font-size: 12px;
+    padding: 6px 13px; border-radius: 7px; cursor: pointer;
+  }
+  .compare button.active { background: var(--panel-3); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  .result-img-wrap { position: relative; margin-top: 4px; }
+  .result-img {
+    display: block; max-width: 100%; max-height: 640px; width: auto; margin: 12px auto 0;
+    border-radius: var(--radius-sm); border: 1px solid var(--border);
+  }
+  .result-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+  .stat {
+    background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: 9px;
+    padding: 7px 12px; font-size: 12px; color: var(--text-dim);
+  }
+  .stat b { color: var(--text); font-size: 14px; }
+
+  table.objects { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.objects th {
+    text-align: left; color: var(--text-faint); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .4px; padding: 8px 10px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  table.objects td { padding: 8px 10px; border-bottom: 1px solid var(--border-soft); color: var(--text-dim); }
+  table.objects tr:last-child td { border-bottom: 0; }
+  table.objects td .obj-id {
+    display: inline-grid; place-items: center; width: 22px; height: 22px;
+    background: var(--panel-3); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-weight: 700; font-size: 11px;
+  }
+  table.objects td .src { color: var(--text); }
+  .score-pill { color: var(--ok); font-weight: 600; }
+  .mono { font-variant-numeric: tabular-nums; }
+
+  .masks { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+  .mask-item {
+    background: var(--bg-soft); border: 1px solid var(--border-soft); border-radius: 10px;
+    overflow: hidden; cursor: zoom-in; transition: border-color .12s, transform .12s;
+  }
+  .mask-item:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .mask-item img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; background: #05070c; }
+  .mask-item .m-name { padding: 7px 10px; font-size: 11.5px; color: var(--text-dim); display: flex; align-items: center; justify-content: space-between; }
+  .mask-item .m-name b { color: var(--text); font-size: 11px; background: var(--panel-3); border-radius: 5px; padding: 1px 6px; }
+
+  .downloads { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  /* modal */
+  .modal {
+    position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center;
+    background: rgba(4, 6, 10, .8); backdrop-filter: blur(4px);
+  }
   .modal.open { display: flex; }
-  .modal img { max-width: 92vw; max-height: 92vh; border-radius: 8px; }
-  .modal span { position: absolute; top: 18px; right: 26px; font-size: 26px; cursor: pointer; color: #fff; }
-  details { margin-top: 8px; }
-  details summary { cursor: pointer; color: var(--muted); }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .modal .box { position: relative; max-width: 92vw; max-height: 92vh; }
+  .modal img { display: block; max-width: 92vw; max-height: 92vh; border-radius: 10px; border: 1px solid var(--border); box-shadow: 0 30px 80px rgba(0,0,0,.6); background: #05070c; }
+  .modal .close {
+    position: absolute; top: -14px; right: -14px; width: 32px; height: 32px; border-radius: 50%;
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+    font-size: 16px; cursor: pointer; display: grid; place-items: center;
+  }
+  .modal .close:hover { color: var(--text); }
+
+  .divider { height: 1px; background: var(--border-soft); margin: 16px 0; }
+  .hint { color: var(--text-faint); font-size: 12px; }
+  .hidden { display: none !important; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--panel-3); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
 </style>
 </head>
 <body>
-<header>
-  <div id="health">checking…</div>
-  <h1>🔬 SAM3 Segment Studio</h1>
-  <p>Image segmentation with <b>text · boxes · points · mixed</b> — facebook/sam3 via 🤗 Transformers</p>
-</header>
-
-<main>
-  <section class="panel">
-    <h2>Image + prompts</h2>
-    <input type="file" id="file" accept="image/*">
-    <div id="drop-zone">Drop an image here, or click to upload</div>
-    <div style="display:none">
-      <div id="canvas-wrap"><canvas id="canvas"></canvas></div>
+<div class="shell">
+  <header>
+    <div class="logo">◎</div>
+    <div class="brand">
+      <h1>SAM3 Segment Studio</h1>
+      <p>Interactive segmentation — text · boxes · points · mixed</p>
     </div>
+    <div class="spacer"></div>
+    <div id="health" class="health"><span class="dot"></span><span id="health-text">connecting…</span></div>
+    <a class="btn small ghost" href="/docs" target="_blank" rel="noopener">API docs ↗</a>
+  </header>
 
-    <div class="toolbar" id="tools">
-      <button data-tool="point+" class="active" style="border-color:var(--ok)">● Point +</button>
-      <button data-tool="point-" style="border-color:var(--bad)">● Point −</button>
-      <button data-tool="box+" style="border-color:var(--ok)">▭ Box +</button>
-      <button data-tool="box-" style="border-color:var(--bad)">▭ Box −</button>
-      <button id="clear-prompts">Clear prompts</button>
-    </div>
-    <p class="hint">Click = point (positive), Shift+click = negative point · drag = box · right-click clears.</p>
+  <div class="layout">
+    <!-- ============================================ SIDEBAR -->
+    <aside>
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">🖼️</span><h2>Image</h2>
+        </div>
+        <div class="card-body">
+          <div id="dropzone" class="dropzone">
+            <div class="dz-icon">🖼️</div>
+            <div class="dz-title">Drop an image here</div>
+            <div class="dz-sub">PNG · JPEG · WebP — or click to browse</div>
+            <span class="dz-btn">Choose image</span>
+            <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/bmp">
+          </div>
 
-    <h2 style="margin-top:16px">Result</h2>
-    <img id="result-img" alt="segmentation result" hidden>
-    <div id="status"></div>
-    <div id="downloads"></div>
-  </section>
+          <div id="imagebar" class="imagebar hidden">
+            <img id="thumb" class="thumb" alt="">
+            <div class="meta">
+              <div id="img-name" class="name"></div>
+              <div id="img-dims" class="dims"></div>
+            </div>
+            <button id="change-img" class="btn small change">Change</button>
+          </div>
+        </div>
+      </div>
 
-  <section class="panel">
-    <h2>Prompt</h2>
-    <label for="mode">Mode</label>
-    <select id="mode">
-      <option value="auto">Auto (text/boxes → PCS, points → tracker)</option>
-      <option value="text">Text (+ optional boxes)</option>
-      <option value="box">Boxes only</option>
-      <option value="point">Points only</option>
-      <option value="mixed">Mixed (text/boxes + points)</option>
-    </select>
-    <label for="text">Text prompt (optional)</label>
-    <input type="text" id="text" placeholder='e.g. "yellow school bus", "ear", "handle"'>
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">🎯</span><h2>Prompts</h2>
+          <div class="spacer"></div>
+          <span id="prompt-count" class="badge">0 prompts</span>
+        </div>
+        <div class="card-body">
+          <div class="tools">
+            <button class="tool t-pp active" data-tool="pp"><span class="swatch"></span>Point +<span class="kbd">1</span></button>
+            <button class="tool t-pn" data-tool="pn"><span class="swatch"></span>Point −<span class="kbd">2</span></button>
+            <button class="tool t-bp" data-tool="bp"><span class="swatch"></span>Box +<span class="kbd">3</span></button>
+            <button class="tool t-bn" data-tool="bn"><span class="swatch"></span>Box −<span class="kbd">4</span></button>
+          </div>
+          <div class="prompt-chips" id="chips"></div>
 
-    <details open>
-      <summary>Advanced</summary>
-      <label>Score threshold — <span id="score-v">0.30</span></label>
-      <input type="range" id="score" min="0" max="1" step="0.01" value="0.30">
-      <label>Mask threshold — <span id="mask-v">0.50</span></label>
-      <input type="range" id="mask" min="0" max="1" step="0.01" value="0.50">
-      <label>Overlay opacity — <span id="opacity-v">0.55</span></label>
-      <input type="range" id="opacity" min="0" max="1" step="0.05" value="0.55">
-      <label>Max masks — <span id="max-v">100</span></label>
-      <input type="range" id="max" min="1" max="100" step="1" value="100">
-      <label><input type="checkbox" id="semantic" style="width:auto"> Show semantic mask (text mode)</label>
-    </details>
+          <div class="divider"></div>
+          <div class="field">
+            <label for="text">Text prompt <span class="hint">(optional)</span></label>
+            <input type="text" id="text" placeholder='e.g. "yellow school bus", "ear", "handle"'>
+          </div>
+          <div class="field">
+            <label for="mode">Mode</label>
+            <select id="mode">
+              <option value="auto">Auto — text/boxes → PCS · points → tracker</option>
+              <option value="text">Text (+ optional boxes)</option>
+              <option value="box">Boxes only</option>
+              <option value="point">Points only</option>
+              <option value="mixed">Mixed — text/boxes + points</option>
+            </select>
+          </div>
 
-    <button id="run" class="primary">🚀 Run segmentation</button>
+          <details class="adv">
+            <summary>Advanced settings</summary>
+            <div class="inner">
+              <div class="slider">
+                <label>Score threshold <span class="val" id="score-v">0.30</span></label>
+                <input type="range" id="score" min="0" max="1" step="0.01" value="0.30">
+              </div>
+              <div class="slider">
+                <label>Mask threshold <span class="val" id="mask-v">0.50</span></label>
+                <input type="range" id="mask" min="0" max="1" step="0.01" value="0.50">
+              </div>
+              <div class="slider">
+                <label>Overlay opacity <span class="val" id="opacity-v">0.55</span></label>
+                <input type="range" id="opacity" min="0" max="1" step="0.05" value="0.55">
+              </div>
+              <div class="slider">
+                <label>Max masks <span class="val" id="max-v">100</span></label>
+                <input type="range" id="max" min="1" max="100" step="1" value="100">
+              </div>
+              <label class="check" style="grid-column:1/3">
+                <input type="checkbox" id="semantic"> Show semantic mask (text mode)
+              </label>
+            </div>
+          </details>
 
-    <h2 style="margin-top:20px">Detected instances</h2>
-    <table id="instances"><thead><tr><th>#</th><th>source</th><th>score</th><th>box</th><th>area</th></tr></thead><tbody></tbody></table>
-    <div id="masks" style="margin-top:12px"></div>
-  </section>
-</main>
+          <div style="margin-top:16px">
+            <button id="run" class="btn primary wide">🚀 Run segmentation</button>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button id="undo" class="btn" style="flex:1">↩ Undo</button>
+              <button id="clear" class="btn" style="flex:1">🗑 Clear</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
 
-<div class="modal" id="modal"><span id="modal-close">×</span><img id="modal-img"></div>
+    <!-- ============================================ MAIN -->
+    <main>
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">✏️</span><h2>Editor</h2>
+          <div class="spacer"></div>
+          <span class="badge" id="zoom-info"></span>
+        </div>
+        <div class="stage">
+          <div id="canvas-shell" class="canvas-shell">
+            <div class="empty-state">
+              <div class="big">🖼️</div>
+              <p>No image loaded yet.<br><b>Drop an image on the sidebar or click there to start.</b></p>
+            </div>
+            <canvas id="canvas" class="hidden"></canvas>
+          </div>
+        </div>
+        <div id="status" class="status"><span class="ico">ℹ️</span><span id="status-text"></span></div>
+        <div class="stage-foot">
+          <span>🖱 Click = point · drag = box · <b>Shift</b>+click = opposite sign</span>
+          <div class="spacer"></div>
+          <span><kbd>1–4</kbd> tool&nbsp; <kbd>⌫</kbd> undo&nbsp; <kbd>Ctrl</kbd>+<kbd>Enter</kbd> run</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="icon">📊</span><h2>Results</h2>
+          <div class="spacer"></div>
+          <div class="compare" id="compare" style="display:none">
+            <button data-view="result" class="active" id="view-result">Segmented</button>
+            <button data-view="original" id="view-original">Original</button>
+          </div>
+        </div>
+        <div class="card-body" id="results-empty">
+          <p class="hint" style="text-align:center;padding:26px 0">
+            Results will appear here after you run a segmentation.
+          </p>
+        </div>
+        <div class="card-body hidden" id="results">
+          <div class="result-meta" id="result-meta"></div>
+          <div class="result-img-wrap">
+            <img id="result-img" class="result-img" alt="segmentation result" hidden>
+          </div>
+          <div id="warnings" style="margin-top:12px"></div>
+
+          <div class="divider"></div>
+          <h2 style="font-size:13px;font-weight:600;margin-bottom:10px">Detected objects</h2>
+          <div style="overflow-x:auto">
+            <table class="objects" id="objects">
+              <thead><tr><th>#</th><th>Source</th><th>Score</th><th>Box (x1,y1,x2,y2)</th><th>Area px</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="divider"></div>
+          <h2 style="font-size:13px;font-weight:600;margin-bottom:10px">Masks</h2>
+          <div class="masks" id="masks"></div>
+
+          <div class="divider"></div>
+          <h2 style="font-size:13px;font-weight:600;margin-bottom:10px">Downloads</h2>
+          <div class="downloads" id="downloads"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <button class="close" id="modal-close">✕</button>
+    <img id="modal-img" alt="">
+  </div>
+</div>
 
 <script>
-const $ = (s) => document.querySelector(s);
-const state = { file: null, img: null, scale: 1, tool: "point+",
-  pp: [], pn: [], bp: [], bn: [], drag: null };
+(() => {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
 
-/* ---------------- upload ---------------- */
-function loadFile(file) {
-  if (!file || !file.type.startsWith("image/")) return;
-  state.file = file;
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.onload = () => {
-    state.img = img;
-    $("#drop-zone").style.display = "none";
-    $("input[type=file]").parentElement.style.display = "block";
-    $("#canvas-wrap").style.display = "block";
-    draw();
+  /* ------------------------------------------------------------ state */
+  const state = {
+    file: null, img: null, url: null,
+    tool: "pp", pp: [], pn: [], bp: [], bn: [], history: [],
+    drag: null, scale: 1, dirty: false,
+    result: null,
   };
-  img.src = url;
-}
-$("#file").addEventListener("change", (e) => loadFile(e.target.files[0]));
-["dragenter", "dragover"].forEach((ev) => $("#drop-zone").addEventListener(ev, (e) => { e.preventDefault(); }));
-$("#drop-zone").addEventListener("drop", (e) => { e.preventDefault(); loadFile(e.dataTransfer.files[0]); });
-$("#drop-zone").addEventListener("click", () => $("#file").click());
 
-/* ---------------- canvas drawing ---------------- */
-function cv() { return $("#canvas"); }
-function draw() {
-  const c = cv(), ctx = c.getContext("2d");
-  const maxW = $("#canvas-wrap").clientWidth || 800;
-  const scale = Math.min(1, maxW / state.img.width);
-  c.width = Math.round(state.img.width * scale);
-  c.height = Math.round(state.img.height * scale);
-  state.scale = state.img.width / c.width;
-  ctx.drawImage(state.img, 0, 0, c.width, c.height);
-  const px = (p) => p / state.scale;
-  ctx.lineWidth = 2; ctx.font = "13px sans-serif"; ctx.textBaseline = "middle";
-  for (const [x, y] of state.bp) { ctx.strokeStyle = "#32cc70"; ctx.fillStyle = "rgba(50,204,112,.15)";
-    ctx.fillRect(px(x[0]), px(y[0]), px(x[2]-x[0]), px(y[2]-y[0]));
-    ctx.strokeRect(px(x[0]), px(y[0]), px(x[2]-x[0]), px(y[2]-y[0])); }
-  for (const [x, y] of state.bn) { ctx.strokeStyle = "#ff5c5c"; ctx.fillStyle = "rgba(255,92,92,.15)";
-    ctx.fillRect(px(x[0]), px(y[0]), px(x[2]-x[0]), px(y[2]-y[0]));
-    ctx.strokeRect(px(x[0]), px(y[0]), px(x[2]-x[0]), px(y[2]-y[0])); }
-  for (const p of state.pp) point(ctx, p, "#32cc70", "＋");
-  for (const p of state.pn) point(ctx, p, "#ff5c5c", "−");
-}
-function point(ctx, p, color, sign) {
-  const x = p[0] / state.scale, y = p[1] / state.scale;
-  ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill();
-  ctx.fillStyle = "#fff"; ctx.fillText(sign, x - 4, y + 1);
-}
+  /* ------------------------------------------------------------ upload */
+  const dropzone = $("#dropzone"), fileInput = $("#file");
 
-function toImageXY(e) {
-  const rect = cv().getBoundingClientRect();
-  return [Math.round((e.clientX - rect.left) * state.scale), Math.round((e.clientY - rect.top) * state.scale)];
-}
-cv().addEventListener("pointerdown", (e) => {
-  if (!state.img) return;
-  e.preventDefault(); cv().setPointerCapture(e.pointerId);
-  const pos = toImageXY(e);
-  const negative = e.shiftKey || e.button === 2;
-  if (state.tool === "box+" || (state.tool === "box-" )) {
-    state.drag = { start: pos, negative: state.tool === "box-" };
-  } else {
-    (negative ? state.pn : state.pp).push(pos);
-    draw();
-  }
-});
-cv().addEventListener("pointermove", (e) => {
-  if (!state.drag) return;
-  // live preview light-redraw for the dragging box would need an image cache; keep it simple
-});
-cv().addEventListener("pointerup", (e) => {
-  if (!state.drag) return;
-  const end = toImageXY(e);
-  const [x0, y0] = state.drag.start, [x1, y1] = end;
-  const box = [Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1), Math.max(y0, y1)];
-  if (Math.abs(x1 - x0) + Math.abs(y1 - y0) < 8) {
-    // Tiny drag = click -> point prompt with the active tool's polarity.
-    (state.drag.negative ? state.pn : state.pp).push(box.slice(0, 2));
-  } else {
-    (state.drag.negative ? state.bn : state.bp).push(box);
-  }
-  state.drag = null; draw();
-});
-cv().addEventListener("contextmenu", (e) => e.preventDefault());
-cv().addEventListener("dblclick", (e) => { // right/alt: remove nearest prompt — simple: clear last of clicked color
-});
-
-/* tools + clear */
-document.querySelectorAll("#tools button[data-tool]").forEach((b) => b.addEventListener("click", () => {
-  state.tool = b.dataset.tool;
-  document.querySelectorAll("#tools button").forEach((x) => x.classList.toggle("active", x === b));
-}));
-$("#clear-prompts").addEventListener("click", () => {
-  state.pp = []; state.pn = []; state.bp = []; state.bn = []; draw();
-  $("#instances tbody").innerHTML = ""; $("#masks").innerHTML = ""; $("#downloads").innerHTML = "";
-  $("#result-img").hidden = true; $("#status").textContent = "";
-});
-
-/* ---------------- run ---------------- */
-$("#score").addEventListener("input", (e) => $("#score-v").textContent = (+e.target.value).toFixed(2));
-$("#mask").addEventListener("input", (e) => $("#mask-v").textContent = (+e.target.value).toFixed(2));
-$("#opacity").addEventListener("input", (e) => $("#opacity-v").textContent = (+e.target.value).toFixed(2));
-$("#max").addEventListener("input", (e) => $("#max-v").textContent = e.target.value);
-
-$("#run").addEventListener("click", async () => {
-  if (!state.file) return setStatus("⚠️ Upload an image first.", true);
-  if (!($("#text").value.trim() || state.pp.length || state.pn.length || state.bp.length || state.bn.length))
-    return setStatus("⚠️ Provide a prompt: draw points/boxes or type text.", true);
-  const btn = $("#run"); btn.disabled = true;
-  setStatus("⏳ Running segmentation…", false);
-  const fd = new FormData();
-  fd.append("image", state.file);
-  fd.append("mode", $("#mode").value);
-  fd.append("text", $("#text").value);
-  fd.append("points_positive", JSON.stringify(state.pp));
-  fd.append("points_negative", JSON.stringify(state.pn));
-  fd.append("boxes_positive", JSON.stringify(state.bp));
-  fd.append("boxes_negative", JSON.stringify(state.bn));
-  fd.append("score_threshold", $("#score").value);
-  fd.append("mask_threshold", $("#mask").value);
-  fd.append("opacity", $("#opacity").value);
-  fd.append("max_masks", $("#max").value);
-  fd.append("show_semantic", String($("#semantic").checked));
-  try {
-    const r = await fetch("/segment", { method: "POST", body: fd });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.detail || data.error || `HTTP ${r.status}`);
-    showResult(data);
-  } catch (err) {
-    setStatus("❌ " + err.message, true);
-  } finally { btn.disabled = false; }
-});
-
-function showResult(data) {
-  const img = $("#result-img");
-  img.src = data.composite; img.hidden = false;
-  let status = `✅ <b>${data.num_instances}</b> object(s) segmented in ${data.elapsed_seconds}s — mode <b>${data.mode}</b>, prompts: ${data.prompt}.`;
-  if (data.warnings.length) status += "<br>⚠️ " + data.warnings.join(" · ");
-  setStatus(status, false);
-  const tbody = $("#instances tbody"); tbody.innerHTML = "";
-  for (const inst of data.instances) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${inst.id}</td><td>${inst.source}</td><td>${inst.score == null ? "—" : inst.score.toFixed(3)}</td>
-      <td>${inst.box.join(",")}</td><td>${inst.area_px.toLocaleString()}</td>`;
-    tbody.appendChild(tr);
-  }
-  const masks = $("#masks"); masks.innerHTML = "";
-  for (const inst of data.instances) {
-    const fig = document.createElement("figure");
-    const im = document.createElement("img"); im.src = inst.mask; im.dataset.src = inst.mask;
-    im.addEventListener("click", () => openModal(inst.mask));
-    const cap = document.createElement("figcaption");
-    cap.textContent = `#${inst.id} ${inst.source}${inst.score != null ? ` (${inst.score.toFixed(2)})` : ""}`;
-    fig.append(im, cap); masks.appendChild(fig);
-  }
-  const dl = $("#downloads"); dl.innerHTML = "";
-  if (data.files) {
-    const mk = (label, key) => {
-      const a = document.createElement("a");
-      a.href = data.files[key]; a.download = ""; a.textContent = "⬇ " + label;
-      dl.appendChild(a);
+  function loadFile(file) {
+    if (!file) return;
+    if (!/^image\/(png|jpe?g|webp|bmp|gif)$/i.test(file.type)) {
+      return setStatus("err", "⚠️", "Unsupported file type. Use PNG, JPEG or WebP.");
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      if (state.url) URL.revokeObjectURL(state.url);
+      state.file = file; state.img = img; state.url = url;
+      clearPrompts(true);
+      $("#img-name").textContent = file.name;
+      $("#img-dims").textContent = `${img.naturalWidth} × ${img.naturalHeight} px · ${(file.size / 1024 / 1024).toFixed(2)} MB`;
+      $("#thumb").src = url;
+      dropzone.classList.add("hidden");
+      $("#imagebar").classList.remove("hidden");
+      $("#canvas-shell .empty-state")?.remove();
+      showCanvas();
+      render();
+      setStatus("ok", "✅", `Image loaded (${img.naturalWidth}×${img.naturalHeight}). Now click or drag on the image.`);
     };
-    if (data.files.composite) mk("composite.png", "composite");
-    if (data.files.json) mk("result.json", "json");
-    if (data.files.masks) { const a = document.createElement("a"); a.href = data.files.masks[0]; a.download = "";
-      a.textContent = `⬇ masks (${data.files.masks.length})`; dl.appendChild(a); }
+    img.onerror = () => setStatus("err", "⚠️", "Could not decode that image.");
+    img.src = url;
   }
-}
-function setStatus(text, error) {
-  const s = $("#status"); s.innerHTML = text; s.className = error ? "err" : "";
-}
 
-/* modal */
-const modal = $("#modal");
-function openModal(src) { $("#modal-img").src = src; modal.classList.add("open"); }
-$("#modal-close").addEventListener("click", () => modal.classList.remove("open"));
-modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("open"); });
+  fileInput.addEventListener("change", (e) => loadFile(e.target.files[0]));
+  $("#change-img").addEventListener("click", () => fileInput.click());
+  ["dragenter", "dragover"].forEach((ev) => dropzone.addEventListener(ev, (e) => {
+    e.preventDefault(); dropzone.classList.add("over");
+  }));
+  ["dragleave", "drop"].forEach((ev) => dropzone.addEventListener(ev, (e) => {
+    e.preventDefault(); dropzone.classList.remove("over");
+  }));
+  dropzone.addEventListener("drop", (e) => loadFile(e.dataTransfer.files[0]));
 
-/* ---------------- health ---------------- */
-fetch("/health").then((r) => r.json()).then((h) => {
-  $("#health").textContent =
-    `${h.mock ? "🧪 mock" : "model " + (h.model_loaded ? "✅" : "⏳")} · ${h.device} · ${h.lazy_load ? "lazy" : "preloaded"}`;
-}).catch(() => { $("#health").textContent = "offline"; });
+  /* ------------------------------------------------------------ canvas */
+  const canvas = $("#canvas"), shell = $("#canvas-shell");
+  let raf = 0;
+
+  function showCanvas() { canvas.classList.remove("hidden"); }
+
+  function fitCanvas() {
+    const iw = state.img.naturalWidth, ih = state.img.naturalHeight;
+    const availW = Math.max(shell.clientWidth - 8, 100);
+    const availH = Math.max(window.innerHeight * 0.72, 320);
+    const s = Math.min(availW / iw, availH / ih);
+    const w = Math.max(1, Math.round(iw * s)), h = Math.max(1, Math.round(ih * s));
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    canvas.width = Math.round(w * (window.devicePixelRatio || 1));
+    canvas.height = Math.round(h * (window.devicePixelRatio || 1));
+    state.scale = iw / canvas.width; // image px per canvas px
+    $("#zoom-info").textContent = `${Math.round(s * 100)}% · ${iw}×${ih}`;
+  }
+
+  function render() {
+    if (!state.img) return;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      fitCanvas();
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(state.img, 0, 0, canvas.width, canvas.height);
+      // boxes
+      const box = (b, color, fill) => {
+        const x = b[0] * state.scale, y = b[1] * state.scale,
+              w = (b[2] - b[0]) * state.scale, h = (b[3] - b[1]) * state.scale;
+        ctx.setLineDash([6, 4]); ctx.lineWidth = 2; ctx.strokeStyle = color;
+        ctx.strokeRect(x, y, w, h);
+        ctx.setLineDash([]);
+        ctx.fillStyle = fill; ctx.fillRect(x, y, w, h);
+      };
+      state.bp.forEach((b) => box(b, "#34d399", "rgba(52,211,153,.16)"));
+      state.bn.forEach((b) => box(b, "#f87171", "rgba(248,113,113,.16)"));
+      // points
+      const pt = (p, color, sign) => {
+        const x = p[0] * state.scale, y = p[1] * state.scale, r = 7;
+        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill();
+        ctx.lineWidth = 2.5; ctx.strokeStyle = "rgba(255,255,255,.9)"; ctx.stroke();
+        ctx.fillStyle = "#0b0e14"; ctx.font = `bold ${Math.round(r * 1.1)}px sans-serif`;
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(sign, x, y + 0.5);
+      };
+      state.pp.forEach((p) => pt(p, "#34d399", "+"));
+      state.pn.forEach((p) => pt(p, "#f87171", "−"));
+      // live drag box
+      if (state.drag) {
+        const a = state.drag.start, b = state.drag.cur;
+        const color = state.drag.negative ? "#f87171" : "#34d399";
+        const fill = state.drag.negative ? "rgba(248,113,113,.22)" : "rgba(52,211,153,.22)";
+        box([Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])], color, fill);
+      }
+      updateChips();
+    });
+  }
+
+  function toImageXY(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.min(Math.max(e.clientX - rect.left, 0), rect.width);
+    const y = Math.min(Math.max(e.clientY - rect.top, 0), rect.height);
+    return [Math.round(x * state.scale), Math.round(y * state.scale)];
+  }
+
+  const isNegative = (e) => e.shiftKey || (state.tool === "pn" || state.tool === "bn");
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (!state.img) return;
+    e.preventDefault();
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) { /* some browsers/iframes throw */ }
+    const pos = toImageXY(e);
+    if (state.tool === "bp" || state.tool === "bn") {
+      state.drag = { start: pos, cur: pos, negative: state.tool === "bn" };
+    } else {
+      const sign = e.shiftKey ? !state.tool.startsWith("p") : state.tool === "pn";
+      addPrompt(sign ? "pn" : "pp", pos);
+    }
+    render();
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (!state.drag) return;
+    state.drag.cur = toImageXY(e);
+    render();
+  });
+  canvas.addEventListener("pointerup", (e) => {
+    if (!state.drag) return;
+    const a = state.drag.start, b = toImageXY(e);
+    const dist = Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]);
+    if (dist < 10) {
+      addPrompt(state.drag.negative ? "pn" : "pp", b);
+    } else {
+      addPrompt(state.drag.negative ? "bn" : "bp",
+        [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])]);
+    }
+    state.drag = null;
+    render();
+  });
+  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  /* ------------------------------------------------------------ prompts */
+  function addPrompt(kind, value) {
+    state[kind].push(value);
+    state.history.push({ kind, index: state[kind].length - 1 });
+    render();
+  }
+  function undo() {
+    const last = state.history.pop();
+    if (!last) return;
+    state[last.kind].splice(last.index, 1);
+    render();
+  }
+  function clearPrompts(keepResult) {
+    state.pp = state.pn = state.bp = state.bn = [];
+    state.history = [];
+    if (!keepResult) { state.result = null; hideResults(); }
+    render();
+  }
+  function updateChips() {
+    const mk = (n, label, cls) => n ? `<span class="chip"><span class="c ${cls}"></span>${n} ${label}</span>` : "";
+    let html = mk(state.pp.length, "points +", "g") + mk(state.pn.length, "points −", "r")
+             + mk(state.bp.length, "boxes +", "g") + mk(state.bn.length, "boxes −", "r");
+    $("#chips").innerHTML = html;
+    const total = state.pp.length + state.pn.length + state.bp.length + state.bn.length;
+    $("#prompt-count").textContent = total ? `${total} prompt${total > 1 ? "s" : ""}` : "0 prompts";
+  }
+
+  document.querySelectorAll(".tool").forEach((b) => b.addEventListener("click", () => {
+    state.tool = b.dataset.tool;
+    document.querySelectorAll(".tool").forEach((x) => x.classList.toggle("active", x === b));
+  }));
+  $("#undo").addEventListener("click", undo);
+  $("#clear").addEventListener("click", () => clearPrompts());
+
+  /* ------------------------------------------------------------ keyboard */
+  const keymap = { "1": "pp", "2": "pn", "3": "bp", "4": "bn" };
+  document.addEventListener("keydown", (e) => {
+    const tag = e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    if (keymap[e.key]) {
+      state.tool = keymap[e.key];
+      document.querySelectorAll(".tool").forEach((x) => x.classList.toggle("active", x.dataset.tool === state.tool));
+      e.preventDefault();
+    } else if (e.key === "Backspace" || (e.key.toLowerCase() === "z" && (e.ctrlKey || e.metaKey))) {
+      undo(); e.preventDefault();
+    } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      run(); e.preventDefault();
+    }
+  });
+
+  /* ------------------------------------------------------------ run */
+  function setStatus(kind, ico, text) {
+    const el = $("#status");
+    el.className = `status show ${kind}`;
+    el.querySelector(".ico").textContent = ico;
+    $("#status-text").innerHTML = text;
+  }
+
+  async function run() {
+    if (!state.file) return setStatus("err", "⚠️", "Upload an image first.");
+    const hasPrompt = $("#text").value.trim() || state.pp.length || state.pn.length || state.bp.length || state.bn.length;
+    if (!hasPrompt) return setStatus("err", "⚠️", "Provide a prompt: draw points/boxes on the image or type text.");
+
+    const btn = $("#run");
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spin"></span> Running…';
+    setStatus("info", "⏳", "Running segmentation… this can take a moment on CPU.");
+
+    const fd = new FormData();
+    fd.append("image", state.file, state.file.name);
+    fd.append("mode", $("#mode").value);
+    fd.append("text", $("#text").value);
+    fd.append("points_positive", JSON.stringify(state.pp));
+    fd.append("points_negative", JSON.stringify(state.pn));
+    fd.append("boxes_positive", JSON.stringify(state.bp));
+    fd.append("boxes_negative", JSON.stringify(state.bn));
+    fd.append("score_threshold", $("#score").value);
+    fd.append("mask_threshold", $("#mask").value);
+    fd.append("opacity", $("#opacity").value);
+    fd.append("max_masks", $("#max").value);
+    fd.append("show_semantic", String($("#semantic").checked));
+
+    try {
+      const resp = await fetch("/segment", { method: "POST", body: fd });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) throw new Error(data.detail?.message || data.detail || `HTTP ${resp.status}`);
+      showResult(data);
+      setStatus("ok", "✅",
+        `<b>${data.num_instances}</b> object(s) in <b>${data.elapsed_seconds}s</b> — mode <b>${data.mode}</b> · ${data.prompt}`);
+    } catch (err) {
+      setStatus("err", "❌", String(err.message || err));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "🚀 Run segmentation";
+    }
+  }
+  $("#run").addEventListener("click", run);
+
+  /* ------------------------------------------------------------ results */
+  function showResult(data) {
+    state.result = data;
+    $("#results-empty").classList.add("hidden");
+    $("#results").classList.remove("hidden");
+    $("#compare").style.display = "";
+    $("#view-result").classList.add("active");
+    $("#view-original").classList.remove("active");
+    const img = $("#result-img");
+    img.hidden = false; img.src = data.composite;
+
+    $("#result-meta").innerHTML = `
+      <span class="stat"><b>${data.num_instances}</b> objects</span>
+      <span class="stat"><b>${data.elapsed_seconds}s</b> elapsed</span>
+      <span class="stat">mode <b>${data.mode}</b></span>
+      <span class="stat">prompts <b>${data.prompt}</b></span>`;
+
+    const w = $("#warnings");
+    w.innerHTML = data.warnings?.length
+      ? `<span class="badge" style="background:var(--warn);color:#3a2b06;border-color:transparent">⚠ ${data.warnings.join(" · ")}</span>`
+      : "";
+
+    const tbody = $("#objects tbody");
+    tbody.innerHTML = "";
+    for (const inst of data.instances) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><span class="obj-id">${inst.id}</span></td>
+        <td class="src">${inst.source}</td>
+        <td>${inst.score == null ? "—" : `<span class="score-pill">${inst.score.toFixed(3)}</span>`}</td>
+        <td class="mono">${inst.box.join(", ")}</td>
+        <td class="mono">${inst.area_px.toLocaleString()}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    const masks = $("#masks");
+    masks.innerHTML = "";
+    for (const inst of data.instances) {
+      const item = document.createElement("div");
+      item.className = "mask-item";
+      item.innerHTML = `<img src="${inst.mask}" alt="mask ${inst.id}"><div class="m-name"><span>#${inst.id} · ${inst.source}</span><b>${inst.score != null ? inst.score.toFixed(2) : "—"}</b></div>`;
+      item.querySelector("img").addEventListener("click", () => openModal(inst.mask));
+      masks.appendChild(item);
+    }
+
+    const dl = $("#downloads");
+    dl.innerHTML = "";
+    for (const [label, key] of [["Composite", "composite"], ["Result JSON", "json"], [`Masks (${data.files.masks.length})`, "masks"]]) {
+      const href = key === "masks" ? data.files.masks[0] : data.files[key];
+      if (!href) continue;
+      const a = document.createElement("a");
+      a.className = "btn small";
+      a.href = href; a.download = ""; a.textContent = "⬇ " + label;
+      a.title = key === "masks" ? "All masks are saved under /outputs" : "";
+      dl.appendChild(a);
+    }
+  }
+
+  $("#compare").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    document.querySelectorAll("#compare button").forEach((b) => b.classList.toggle("active", b === btn));
+    $("#result-img").src = btn.dataset.view === "original" ? state.url : state.result.composite;
+  });
+
+  function hideResults() {
+    $("#results").classList.add("hidden");
+    $("#results-empty").classList.remove("hidden");
+    $("#compare").style.display = "none";
+  }
+
+  /* modal */
+  const modal = $("#modal");
+  function openModal(src) { $("#modal-img").src = src; modal.classList.add("open"); }
+  $("#modal-close").addEventListener("click", () => modal.classList.remove("open"));
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.classList.remove("open"); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") modal.classList.remove("open"); });
+
+  /* sliders */
+  for (const id of ["score", "mask"]) {
+    $(`#${id}`).addEventListener("input", (e) => $(`#${id}-v`).textContent = (+e.target.value).toFixed(2));
+  }
+  $("#opacity").addEventListener("input", (e) => $("#opacity-v").textContent = (+e.target.value).toFixed(2));
+  $("#max").addEventListener("input", (e) => $("#max-v").textContent = e.target.value);
+
+  window.addEventListener("resize", () => { if (state.img) render(); });
+  document.querySelector(".shell").addEventListener("dragover", (e) => e.preventDefault());
+  document.querySelector(".shell").addEventListener("drop", (e) => {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    if (f) loadFile(f);
+  });
+
+  /* health */
+  fetch("/health").then((r) => r.json()).then((h) => {
+    const el = $("#health");
+    el.classList.toggle("mock", h.mock);
+    el.classList.toggle("bad", !h.mock && !h.model_loaded);
+    $("#health-text").textContent = h.mock
+      ? `mock engine · ${h.device}`
+      : `model ${h.model_loaded ? "ready" : "loading…"} · ${h.device}`;
+  }).catch(() => {
+    $("#health").classList.add("bad");
+    $("#health-text").textContent = "server offline";
+  });
+})();
 </script>
 </body>
 </html>
