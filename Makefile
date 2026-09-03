@@ -69,6 +69,23 @@ run-dev: setup ## Launch FastAPI with uvicorn auto-reload (development)
 run-mock: setup ## Launch the API with a mock engine (no model download)
 	SAM_MOCK=true $(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT)
 
+# ------------------------------------------------------------------ full dev
+# One command: start the API (background) + the Vite UI (foreground), kill the
+# API when the UI exits. Use dev-mock for a quick try without model download.
+.PHONY: dev
+dev: setup ## Run API (:8000) + UI dev server (:5173) together
+	@echo "▶ API on  http://localhost:$(PORT)   |   UI on http://localhost:5173"
+	@trap 'kill 0' EXIT INT TERM; \
+	$(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT) & \
+	cd frontend && npm run dev
+
+.PHONY: dev-mock
+dev-mock: setup ## Same as `dev` but with the mock engine (no model download)
+	@echo "▶ API (mock) on http://localhost:$(PORT)   |   UI on http://localhost:5173"
+	@trap 'kill 0' EXIT INT TERM; \
+	SAM_MOCK=true $(PYTHON) -m sam3_studio.main --host $(HOST) --port $(PORT) & \
+	cd frontend && npm run dev
+
 .PHONY: config
 config: setup ## Print the effective configuration (values from .env / env vars)
 	$(PYTHON) -m sam3_studio.main --config
